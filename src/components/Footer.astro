@@ -1,0 +1,49 @@
+---
+import Container from './Container.astro';
+
+const year = new Date().getFullYear();
+const links = [
+  { href: '/', label: 'Home' },
+  { href: '/about', label: 'About' },
+  { href: '/services', label: 'Services' },
+  { href: '/contact', label: 'Contact' },
+];
+---
+
+<footer class="border-t border-border bg-bg-raised">
+  <Container class="grid gap-8 py-12 md:grid-cols-3">
+    <div>
+      <p class="font-bold text-text">Renvik Consulting</p>
+      <p class="mt-2 max-w-xs text-sm text-text-muted">
+        AI strategy and implementation for teams that want AI to ship, not just pilot &mdash;
+        backed by over a decade of enterprise IT delivery.
+      </p>
+    </div>
+
+    <div class="flex flex-col gap-2">
+      <p class="text-sm font-semibold text-text">Site</p>
+      {
+        links.map((link) => (
+          <a href={link.href} class="text-sm text-text-muted hover:text-brand">
+            {link.label}
+          </a>
+        ))
+      }
+    </div>
+
+    <div class="flex flex-col gap-2">
+      <p class="text-sm font-semibold text-text">Get in touch</p>
+      <a href="/contact" class="text-sm text-text-muted hover:text-brand">Contact form</a>
+      <!--
+        TODO(content): confirm real phone/email/address with the client and
+        replace the placeholders on the Contact page (src/pages/contact.astro).
+        Contact details are obfuscated client-side there - see
+        docs/SECURITY.md#contact-detail-obfuscation before changing that.
+      -->
+    </div>
+  </Container>
+
+  <Container class="border-t border-border py-6">
+    <p class="text-xs text-text-muted">&copy; {year} Renvik Consulting. All rights reserved.</p>
+  </Container>
+</footer>

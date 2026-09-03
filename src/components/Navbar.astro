@@ -1,0 +1,99 @@
+---
+import Container from './Container.astro';
+import ThemeToggle from './ThemeToggle.astro';
+
+const links = [
+  { href: '/', label: 'Home' },
+  { href: '/about', label: 'About' },
+  { href: '/services', label: 'Services' },
+  { href: '/contact', label: 'Contact' },
+];
+const current = Astro.url.pathname;
+---
+
+<header class="sticky top-0 z-50 border-b border-border bg-bg/80 backdrop-blur">
+  <Container class="flex h-16 items-center justify-between">
+    <a href="/" class="flex items-center gap-2 font-bold text-text">
+      <img src="/logo.jpeg" alt="Renvik Consulting" class="h-8 w-8 rounded object-cover" />
+      <span>Renvik Consulting</span>
+    </a>
+
+    <nav class="hidden items-center gap-8 md:flex">
+      {
+        links.map((link) => (
+          <a
+            href={link.href}
+            aria-current={current === link.href ? 'page' : undefined}
+            class:list={[
+              'text-sm font-medium transition-colors hover:text-brand',
+              current === link.href ? 'text-brand' : 'text-text-muted',
+            ]}
+          >
+            {link.label}
+          </a>
+        ))
+      }
+    </nav>
+
+    <div class="hidden items-center gap-4 md:flex">
+      <ThemeToggle />
+      <a
+        href="/contact"
+        class="inline-flex items-center rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-hover"
+      >
+        Book a Consultation
+      </a>
+    </div>
+
+    <div class="flex items-center gap-2 md:hidden">
+      <ThemeToggle />
+      <button
+        id="mobile-menu-button"
+        type="button"
+        aria-expanded="false"
+        aria-controls="mobile-menu"
+        aria-label="Open menu"
+        class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border text-text"
+      >
+        <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+      </button>
+    </div>
+  </Container>
+
+  <nav id="mobile-menu" class="hidden border-t border-border md:hidden">
+    <Container class="flex flex-col gap-4 py-4">
+      {
+        links.map((link) => (
+          <a
+            href={link.href}
+            class:list={[
+              'text-sm font-medium',
+              current === link.href ? 'text-brand' : 'text-text-muted',
+            ]}
+          >
+            {link.label}
+          </a>
+        ))
+      }
+      <a
+        href="/contact"
+        class="inline-flex w-full items-center justify-center rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white"
+      >
+        Book a Consultation
+      </a>
+    </Container>
+  </nav>
+</header>
+
+<script>
+  const button = document.getElementById('mobile-menu-button');
+  const menu = document.getElementById('mobile-menu');
+
+  button?.addEventListener('click', () => {
+    const isOpen = menu?.classList.toggle('hidden') === false;
+    button.setAttribute('aria-expanded', String(isOpen));
+    button.setAttribute('aria-label', isOpen ? 'Close menu' : 'Open menu');
+  });
+</script>

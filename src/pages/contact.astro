@@ -1,0 +1,200 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Container from '../components/Container.astro';
+
+// Public Turnstile site key (safe to expose - the secret key lives only in
+// the Pages Function env, never here). Must be set at build time; see
+// docs/DEPLOYMENT.md#turnstile.
+const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY ?? '';
+
+// TODO(content): confirm real phone/email/address with the client - these
+// are the same placeholder values the previous site shipped with. Values
+// are base64'd below and assembled client-side; see
+// docs/SECURITY.md#contact-detail-obfuscation.
+const contactEmail = 'hello@renvikconsulting.com';
+const contactPhone = '+1 (555) 123-4567';
+const contactAddress = '123 Innovation Way, Tech City, IN';
+const emailEncoded = Buffer.from(contactEmail).toString('base64');
+const phoneEncoded = Buffer.from(contactPhone).toString('base64');
+---
+
+<BaseLayout
+  title="Contact"
+  description="Book a consultation with Renvik Consulting to discuss AI strategy, implementation, IT consulting, or technical staffing."
+>
+  <section class="py-16 lg:py-24">
+    <Container class="grid gap-16 lg:grid-cols-2">
+      <div>
+        <p class="text-sm font-semibold uppercase tracking-wide text-brand">Contact Us</p>
+        <h1 class="mt-3 text-4xl font-bold tracking-tight text-text sm:text-5xl">Get in touch</h1>
+        <p class="mt-6 text-lg text-text-muted">
+          Have a project in mind, or just want to talk through where AI might fit? Send us a message and
+          we'll get back to you.
+        </p>
+
+        <dl class="mt-10 flex flex-col gap-6">
+          <div>
+            <dt class="text-sm font-semibold text-text">Phone</dt>
+            <dd class="mt-1 text-text-muted">
+              <a id="contact-phone-link" href="#" class="hover:text-brand" data-b64={phoneEncoded}>
+                <span id="contact-phone-text">Loading&hellip;</span>
+              </a>
+            </dd>
+          </div>
+          <div>
+            <dt class="text-sm font-semibold text-text">Email</dt>
+            <dd class="mt-1 text-text-muted">
+              <a id="contact-email-link" href="#" class="hover:text-brand" data-b64={emailEncoded}>
+                <span id="contact-email-text">Loading&hellip;</span>
+              </a>
+            </dd>
+          </div>
+          <div>
+            <dt class="text-sm font-semibold text-text">Address</dt>
+            <dd class="mt-1 text-text-muted">{contactAddress}</dd>
+          </div>
+        </dl>
+      </div>
+
+      <div class="rounded-2xl border border-border bg-bg-raised p-6 shadow-[var(--shadow-card)] sm:p-8">
+        <form id="contact-form" class="flex flex-col gap-5" novalidate>
+          <div class="flex flex-col gap-1.5">
+            <label for="name" class="text-sm font-medium text-text">Name</label>
+            <input
+              id="name"
+              name="name"
+              type="text"
+              required
+              autocomplete="name"
+              class="rounded-lg border border-border bg-bg px-3 py-2 text-text placeholder:text-text-muted/60 focus-visible:border-brand"
+              placeholder="Your name"
+            />
+          </div>
+
+          <div class="flex flex-col gap-1.5">
+            <label for="email" class="text-sm font-medium text-text">Email</label>
+            <input
+              id="email"
+              name="email"
+              type="email"
+              required
+              autocomplete="email"
+              class="rounded-lg border border-border bg-bg px-3 py-2 text-text placeholder:text-text-muted/60 focus-visible:border-brand"
+              placeholder="you@company.com"
+            />
+          </div>
+
+          <div class="flex flex-col gap-1.5">
+            <label for="message" class="text-sm font-medium text-text">Message</label>
+            <textarea
+              id="message"
+              name="message"
+              rows="5"
+              required
+              class="rounded-lg border border-border bg-bg px-3 py-2 text-text placeholder:text-text-muted/60 focus-visible:border-brand"
+              placeholder="Tell us a bit about what you're working on"
+            ></textarea>
+          </div>
+
+          <!--
+            Honeypot: real users never see or fill this in (visually hidden,
+            not display:none - some bots skip display:none fields). Any
+            non-empty value here is treated as spam server-side. See
+            functions/api/contact.ts.
+          -->
+          <div class="visually-hidden" aria-hidden="true">
+            <label for="website">Leave this field empty</label>
+            <input id="website" name="website" type="text" tabindex="-1" autocomplete="off" />
+          </div>
+
+          {
+            turnstileSiteKey && (
+              <div class="cf-turnstile" data-sitekey={turnstileSiteKey} data-theme="auto" />
+            )
+          }
+
+          <button
+            type="submit"
+            class="inline-flex items-center justify-center rounded-lg bg-brand px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-brand-hover disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            Send Message
+          </button>
+
+          <p id="form-status" role="status" class="text-sm" aria-live="polite"></p>
+        </form>
+      </div>
+    </Container>
+  </section>
+
+  {
+    turnstileSiteKey && (
+      <script is:inline src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer />
+    )
+  }
+</BaseLayout>
+
+<script>
+  // Assembled client-side from a data-b64 attribute (not inlined into the
+  // script itself) so plain-text scrapers of the HTML source don't pick up
+  // a bare mailto:/tel: string, and so this script stays a normal bundled
+  // file covered by CSP's `script-src 'self'` - no hash to maintain here,
+  // unlike the pre-paint theme script in BaseLayout.astro. See
+  // docs/SECURITY.md#contact-detail-obfuscation.
+  function decodeContactLink(linkId: string, textId: string, hrefPrefix: string, clean?: (s: string) => string) {
+    const link = document.getElementById(linkId);
+    const text = document.getElementById(textId);
+    const encoded = link?.dataset.b64;
+    if (!link || !text || !encoded) return;
+    const value = atob(encoded);
+    link.setAttribute('href', hrefPrefix + (clean ? clean(value) : value));
+    text.textContent = value;
+  }
+
+  decodeContactLink('contact-email-link', 'contact-email-text', 'mailto:');
+  decodeContactLink('contact-phone-link', 'contact-phone-text', 'tel:', (s) => s.replace(/[^+\d]/g, ''));
+</script>
+
+<script>
+  const form = document.getElementById('contact-form');
+  const status = document.getElementById('form-status');
+
+  form?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (!(form instanceof HTMLFormElement) || !status) return;
+
+    const submitButton = form.querySelector('button[type="submit"]');
+    const formData = new FormData(form);
+    const payload = {
+      name: formData.get('name'),
+      email: formData.get('email'),
+      message: formData.get('message'),
+      website: formData.get('website'), // honeypot
+      turnstileToken: formData.get('cf-turnstile-response'),
+    };
+
+    if (submitButton instanceof HTMLButtonElement) submitButton.disabled = true;
+    status.textContent = 'Sending…';
+    status.className = 'text-sm text-text-muted';
+
+    try {
+      const res = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) throw new Error('Request failed');
+
+      status.textContent = "Thanks - we'll be in touch shortly.";
+      status.className = 'text-sm text-emerald-600 dark:text-emerald-400';
+      form.reset();
+      // @ts-ignore - Turnstile global loaded from challenges.cloudflare.com
+      window.turnstile?.reset?.();
+    } catch (err) {
+      status.textContent = 'Something went wrong sending your message. Please try emailing us directly.';
+      status.className = 'text-sm text-red-600 dark:text-red-400';
+    } finally {
+      if (submitButton instanceof HTMLButtonElement) submitButton.disabled = false;
+    }
+  });
+</script>
