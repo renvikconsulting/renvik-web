@@ -92,8 +92,8 @@ team section) were **deliberately left out** rather than filled with placeholder
 
 - Never invent client names, logos, quotes, case-study numbers, or team members/photos.
 - If the user supplies real content, use it. Otherwise ask, or leave the `TODO(content)` comment in place.
-- The Contact page's phone/email/address are still the same placeholder-looking values the previous site
-  shipped with (`+1 (555) 123-4567` etc.) — flagged `TODO(content)` — confirm real ones before this ships.
+- The Contact page's phone/email/address were placeholders at launch; confirmed with real values via PR #1
+  review comments (`src/pages/contact.astro`) and updated — no longer a `TODO(content)` item.
 
 ## Deploying
 

@@ -7,13 +7,12 @@ import Container from '../components/Container.astro';
 // docs/DEPLOYMENT.md#turnstile.
 const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY ?? '';
 
-// TODO(content): confirm real phone/email/address with the client - these
-// are the same placeholder values the previous site shipped with. Values
-// are base64'd below and assembled client-side; see
+// Real contact details, confirmed via PR review (see PR #1 review
+// comments). Values are base64'd below and assembled client-side; see
 // docs/SECURITY.md#contact-detail-obfuscation.
-const contactEmail = 'hello@renvikconsulting.com';
-const contactPhone = '+1 (555) 123-4567';
-const contactAddress = '123 Innovation Way, Tech City, IN';
+const contactEmail = 'info@renvikconsulting.com';
+const contactPhone = '+1 (469) 712 7575';
+const contactAddress = 'Frisco, TX 75036';
 const emailEncoded = Buffer.from(contactEmail).toString('base64');
 const phoneEncoded = Buffer.from(contactPhone).toString('base64');
 ---
