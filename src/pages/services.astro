@@ -1,0 +1,142 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Container from '../components/Container.astro';
+import SectionHeading from '../components/SectionHeading.astro';
+import Button from '../components/Button.astro';
+
+const pillars = [
+  {
+    title: 'AI Strategy & Advisory',
+    description:
+      'Before we build anything, we help you figure out what is actually worth building. We assess your data, systems, and workflows, then prioritize AI use cases by realistic ROI and delivery risk - not by what is trending.',
+    points: [
+      'AI readiness and data-maturity assessment',
+      'Use-case identification and prioritization',
+      'Build-vs-buy and model/vendor selection guidance',
+      'Roadmap and business case for stakeholders',
+    ],
+    image: { src: '/planning.jpg', alt: 'Team planning an AI strategy roadmap' },
+  },
+  {
+    title: 'AI & LLM Implementation',
+    description:
+      'Hands-on delivery of the systems your strategy calls for: retrieval-augmented generation, internal copilots, and agentic workflows, integrated with the tools your team already runs on.',
+    points: [
+      'Retrieval-augmented generation (RAG) systems',
+      'Internal copilots and agent workflows',
+      'Integration with existing business systems',
+      'Evaluation, guardrails, and safety review before launch',
+    ],
+    image: { src: '/project.jpg', alt: 'Engineers implementing an AI project' },
+  },
+  {
+    title: 'MLOps & Data Platforms',
+    description:
+      'AI systems that work in a demo and AI systems that survive production are different problems. We build the data pipelines, deployment tooling, and monitoring that keep the second kind running.',
+    points: [
+      'Data pipeline design and automation',
+      'Model deployment and versioning',
+      'Observability, monitoring, and alerting',
+      'Cost and performance optimization',
+    ],
+    image: { src: '/cloud.jpg', alt: 'Cloud infrastructure for data and ML platforms' },
+  },
+  {
+    title: 'IT Consulting',
+    description:
+      'Our original line of business and still core to what we do: technology assessments, systems architecture, and cloud infrastructure guidance, informed by over a decade of enterprise delivery.',
+    points: [
+      'Technology and infrastructure assessment',
+      'Systems architecture and cloud strategy',
+      'Process improvement and tooling review',
+      'Vendor and cost analysis',
+    ],
+    image: { src: '/consult.jpg', alt: 'IT consulting session' },
+  },
+  {
+    title: 'Technical Staffing',
+    description:
+      'When the constraint is headcount, not strategy, we place vetted AI/ML and software engineering talent - as staff augmentation, contract-to-hire, or direct placement.',
+    points: [
+      'Staff augmentation for AI/ML and engineering teams',
+      'Contract-to-hire and permanent placement',
+      'Candidates pre-screened against your stack',
+    ],
+    image: { src: '/team_work.jpg', alt: 'Technical team working together' },
+  },
+];
+---
+
+<BaseLayout
+  title="Services"
+  description="AI strategy, AI/LLM implementation, MLOps, IT consulting, and technical staffing - Renvik Consulting's five service lines."
+>
+  <section class="py-16 lg:py-24">
+    <Container>
+      <SectionHeading
+        as="h1"
+        eyebrow="Services"
+        title="Everything from AI strategy to hands-on delivery"
+        description="Five service lines, one team. Engage us for a single project or as an ongoing technology partner."
+      />
+    </Container>
+  </section>
+
+  <div class="pb-16 lg:pb-24">
+    {
+      pillars.map((pillar, i) => (
+        <section class:list={['border-t border-border py-16', i % 2 === 1 && 'bg-bg-raised']}>
+          <Container>
+            <div
+              class:list={[
+                'grid items-center gap-12 lg:grid-cols-2',
+                i % 2 === 1 && 'lg:[&>*:first-child]:order-2',
+              ]}
+            >
+              <img
+                src={pillar.image.src}
+                alt={pillar.image.alt}
+                class="aspect-[4/3] w-full rounded-2xl object-cover shadow-[var(--shadow-card)]"
+                loading="lazy"
+                width="640"
+                height="480"
+              />
+              <div>
+                <h2 class="text-2xl font-bold text-text sm:text-3xl">{pillar.title}</h2>
+                <p class="mt-4 text-text-muted">{pillar.description}</p>
+                <ul class="mt-6 flex flex-col gap-2">
+                  {pillar.points.map((point) => (
+                    <li class="flex items-start gap-2 text-sm text-text-muted">
+                      <svg
+                        class="mt-0.5 h-4 w-4 flex-shrink-0 text-accent"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2.5"
+                      >
+                        <path d="M5 13l4 4L19 7" />
+                      </svg>
+                      <span>{point}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </Container>
+        </section>
+      ))
+    }
+  </div>
+
+  <section class="border-t border-border py-16 text-center lg:py-24">
+    <Container>
+      <h2 class="text-2xl font-bold text-text sm:text-3xl">Not sure which service line fits?</h2>
+      <p class="mx-auto mt-3 max-w-xl text-text-muted">
+        That's exactly what the first conversation is for. Tell us the problem and we'll tell you honestly whether AI is the right tool for it.
+      </p>
+      <div class="mt-8 flex justify-center">
+        <Button href="/contact">Book a Consultation</Button>
+      </div>
+    </Container>
+  </section>
+</BaseLayout>

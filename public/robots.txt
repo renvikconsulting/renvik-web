@@ -1,3 +1,39 @@
-# https://www.robotstxt.org/robotstxt.html
+# Search engines: welcome.
 User-agent: *
-Disallow:
+Allow: /
+
+# AI-training crawlers: disallowed as a code-level backstop. The primary
+# control is Cloudflare's "Block AI Scrapers and Crawlers" toggle (dashboard
+# setting - see docs/DEPLOYMENT.md) which blocks at the edge regardless of
+# whether a given bot honors robots.txt.
+User-agent: GPTBot
+Disallow: /
+
+User-agent: ChatGPT-User
+Disallow: /
+
+User-agent: CCBot
+Disallow: /
+
+User-agent: Google-Extended
+Disallow: /
+
+User-agent: anthropic-ai
+Disallow: /
+
+User-agent: ClaudeBot
+Disallow: /
+
+User-agent: Claude-Web
+Disallow: /
+
+User-agent: FacebookBot
+Disallow: /
+
+User-agent: Bytespider
+Disallow: /
+
+User-agent: PerplexityBot
+Disallow: /
+
+Sitemap: https://www.renvikconsulting.com/sitemap-index.xml
