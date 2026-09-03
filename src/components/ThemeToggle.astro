@@ -1,11 +1,18 @@
 ---
 ---
 
+<!--
+  Rendered twice per page (desktop + mobile clusters in Navbar.astro, one
+  hidden via responsive classes at any given width) - use data-theme-toggle
+  + querySelectorAll below, not id/getElementById/querySelector, or only
+  the first (possibly hidden) instance responds to clicks. See
+  CLAUDE.md#theming-light-dark.
+-->
 <button
-  id="theme-toggle"
+  data-theme-toggle
   type="button"
   aria-label="Toggle dark mode"
-  class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border text-text-muted transition-colors hover:border-brand hover:text-brand"
+  class="glass glow-hover inline-flex h-9 w-9 items-center justify-center rounded-lg text-text-muted transition-colors hover:text-text"
 >
   <svg class="theme-icon-sun h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
     <circle cx="12" cy="12" r="4" />
@@ -19,9 +26,7 @@
 <script>
   const STORAGE_KEY = 'renvik-theme';
   const root = document.documentElement;
-  const button = document.getElementById('theme-toggle');
-  const sunIcon = document.querySelector('.theme-icon-sun');
-  const moonIcon = document.querySelector('.theme-icon-moon');
+  const buttons = document.querySelectorAll<HTMLButtonElement>('[data-theme-toggle]');
 
   function isDark() {
     const explicit = root.getAttribute('data-theme');
@@ -32,19 +37,21 @@
 
   function syncIcons() {
     const dark = isDark();
-    sunIcon?.classList.toggle('hidden', dark);
-    moonIcon?.classList.toggle('hidden', !dark);
+    document.querySelectorAll('.theme-icon-sun').forEach((el) => el.classList.toggle('hidden', dark));
+    document.querySelectorAll('.theme-icon-moon').forEach((el) => el.classList.toggle('hidden', !dark));
   }
 
-  button?.addEventListener('click', () => {
-    const next = isDark() ? 'light' : 'dark';
-    root.setAttribute('data-theme', next);
-    try {
-      localStorage.setItem(STORAGE_KEY, next);
-    } catch (e) {
-      /* private browsing / storage disabled: theme just won't persist */
-    }
-    syncIcons();
+  buttons.forEach((button) => {
+    button.addEventListener('click', () => {
+      const next = isDark() ? 'light' : 'dark';
+      root.setAttribute('data-theme', next);
+      try {
+        localStorage.setItem(STORAGE_KEY, next);
+      } catch (e) {
+        /* private browsing / storage disabled: theme just won't persist */
+      }
+      syncIcons();
+    });
   });
 
   syncIcons();

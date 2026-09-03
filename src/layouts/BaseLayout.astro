@@ -20,7 +20,7 @@ const canonicalURL = new URL(Astro.url.pathname, Astro.site);
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
     <link rel="manifest" href="/manifest.json" />
-    <meta name="theme-color" content="#4338ca" />
+    <meta name="theme-color" content="#06070d" />
     <link rel="canonical" href={canonicalURL} />
     <title>{pageTitle}</title>
     <meta name="description" content={description} />
@@ -34,16 +34,14 @@ const canonicalURL = new URL(Astro.url.pathname, Astro.site);
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
       rel="stylesheet"
     />
 
     <!--
-      Pre-paint theme script. Must stay byte-for-byte identical to the
-      script hashed into the script-src CSP directive in public/_headers
-      (see docs/SECURITY.md#theme-script-csp-hash) - editing this requires
-      recomputing that hash, or dark-mode users get a flash of light theme
-      and the console shows a CSP violation.
+      Pre-paint theme script. Its CSP hash (and every other inline script's)
+      is regenerated automatically at build time - see
+      docs/SECURITY.md#inline-script-csp-hashes and CLAUDE.md#theming-light-dark.
     -->
     <script is:inline>
       (function () {
@@ -56,7 +54,7 @@ const canonicalURL = new URL(Astro.url.pathname, Astro.site);
       })();
     </script>
   </head>
-  <body class="flex min-h-screen flex-col">
+  <body class="bg-grid flex min-h-screen flex-col">
     <Navbar />
     <main class="flex-1">
       <slot />

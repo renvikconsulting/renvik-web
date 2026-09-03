@@ -2,22 +2,27 @@
 
 AI-first marketing site for Renvik Consulting (AI strategy/implementation, IT consulting, technical staffing).
 Rebuilt 2026-09 from a legacy Create React App SPA into a static Astro site, self-hosted on Cloudflare Pages.
-Full rebuild plan/history: see git log on the `new-design-26` branch.
+Full rebuild plan/history: see git log (started on `new-design-26`, PR #1; the visual redesign below landed on
+`genai-redesign-v2`).
 
 ## Stack
 
-- **Astro 5**, static output (`output: 'static'` in `astro.config.mjs`). No React/Vue/etc. — plain `.astro`
+- **Astro 7**, static output (`output: 'static'` in `astro.config.mjs`). No React/Vue/etc. — plain `.astro`
   components with vanilla `<script>` for interactivity (nav toggle, theme toggle, contact form). There was no
-  reason to pull in a UI framework for a 4-page marketing site; don't add one without a real need.
+  reason to pull in a UI framework for a 4-page marketing site; don't add one without a real need. Pinned to
+  7.x (not 5.x) because several high-severity XSS/SSRF CVEs are only patched there — check `npm audit` before
+  ever downgrading.
 - **Tailwind CSS v4** via `@tailwindcss/vite` (no separate `@astrojs/tailwind` integration, no `tailwind.config.js`
   — v4 is CSS-config-first, see `src/styles/global.css`).
-- **Design language**: an original design system inspired by [AstroWind](https://github.com/onwidget/astrowind)
-  (MIT-licensed Astro+Tailwind theme — clean SaaS/consulting aesthetic, built-in dark mode, strong
-  Lighthouse/SEO scores) — not a fork, no AstroWind code was copied. Two other free/MIT options were
-  considered and passed over: `shadcn-landing-page` (React+shadcn/ui — would have pulled in a UI framework
-  this static 4-page site doesn't need) and a fully-custom design (more design iteration for no clear payoff
-  over adapting a proven layout). If the visual direction needs to change later, that's the tradeoff being
-  revisited.
+- **Design language (v2 — "Bold AI-native")**: dark-first, gradient-mesh glow blobs, glassmorphism cards, a
+  violet→fuchsia→cyan brand gradient, mono accents (JetBrains Mono) for eyebrow badges/numbering, Space
+  Grotesk for headings. Chosen over two other directions considered and rejected: a light "premium
+  editorial/minimal" look, and a "warm human-forward" look — both read as generic-consultancy rather than
+  AI-native; see conversation history for the tradeoffs if the direction is revisited. The reusable primitives
+  live in `src/styles/global.css` (`.glass`, `.gradient-ring`, `.text-gradient`, `.blob`/`.blob-alt`,
+  `.bg-grid`, `.glow-hover`) — reach for those instead of writing new ad-hoc gradient/blur CSS per component.
+  The v1 design (AstroWind-inspired, light-first, plain cards) is still in `new-design-26`'s history if you
+  need to compare.
 - **Cloudflare Pages** hosting the static build; **one** Cloudflare Pages Function
   (`functions/api/contact.ts`) for the contact form, the site's only dynamic endpoint.
 - **Resend** for outbound email from the contact form, **Cloudflare Turnstile** for bot verification.
@@ -64,10 +69,15 @@ check across `.astro` files and `functions/*.ts`, treat failures as real). Previ
   one that's actually correct; if you ever bypass `npm run build` (e.g. run `astro build` directly), the
   deployed CSP will be broken (still carrying the literal placeholder text) and every inline script will be
   silently blocked by the browser.
-- Color tokens live in `src/styles/global.css`: a `:root` block (light), a `@media (prefers-color-scheme:
-  dark)` block, and a `:root[data-theme="dark"]` block, exposed to Tailwind via `@theme inline` (the `inline`
-  keyword matters — it makes Tailwind's generated utilities reference the CSS variable at runtime instead of
-  baking in the light-mode value at build time).
+- Color tokens live in `src/styles/global.css`, exposed to Tailwind via `@theme inline` (the `inline` keyword
+  matters — it makes Tailwind's generated utilities reference the CSS variable at runtime instead of baking
+  in a value at build time). The design is dark-first (v2 "Bold AI-native"), so the cascade is inverted from
+  a typical light-default site: the unconditional `:root` block holds the **dark** tokens, a
+  `@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) {...} }` block overrides to light,
+  and explicit `:root[data-theme="light"]` / `:root[data-theme="dark"]` blocks (highest specificity, latest
+  source order) make the manual toggle win in both directions regardless of system preference. A new token
+  needs a value in all four blocks (base `:root`, the light media override, and both explicit blocks) — see
+  the file itself for the exact pattern, it's fiddly to get right from a description alone.
 
 ## Contact form
 

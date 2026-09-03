@@ -11,10 +11,12 @@ const links = [
 const current = Astro.url.pathname;
 ---
 
-<header class="sticky top-0 z-50 border-b border-border bg-bg/80 backdrop-blur">
+<header class="sticky top-0 z-50 border-b border-border bg-bg/70 backdrop-blur-xl">
   <Container class="flex h-16 items-center justify-between">
-    <a href="/" class="flex items-center gap-2 font-bold text-text">
-      <img src="/logo.jpeg" alt="Renvik Consulting" class="h-8 w-8 rounded object-cover" />
+    <a href="/" class="flex items-center gap-2.5 font-display font-bold text-text">
+      <span class="gradient-ring rounded-lg">
+        <img src="/logo.jpeg" alt="Renvik Consulting" class="h-8 w-8 rounded-[7px] object-cover" />
+      </span>
       <span>Renvik Consulting</span>
     </a>
 
@@ -25,8 +27,8 @@ const current = Astro.url.pathname;
             href={link.href}
             aria-current={current === link.href ? 'page' : undefined}
             class:list={[
-              'text-sm font-medium transition-colors hover:text-brand',
-              current === link.href ? 'text-brand' : 'text-text-muted',
+              'text-sm font-medium transition-colors hover:text-text',
+              current === link.href ? 'text-gradient font-semibold' : 'text-text-muted',
             ]}
           >
             {link.label}
@@ -39,7 +41,7 @@ const current = Astro.url.pathname;
       <ThemeToggle />
       <a
         href="/contact"
-        class="inline-flex items-center rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-hover"
+        class="inline-flex items-center rounded-full px-4 py-2 text-sm font-semibold text-white shadow-[var(--shadow-glow)] transition-all hover:brightness-110 hover:-translate-y-0.5 [background-image:var(--gradient-brand)]"
       >
         Book a Consultation
       </a>
@@ -53,7 +55,7 @@ const current = Astro.url.pathname;
         aria-expanded="false"
         aria-controls="mobile-menu"
         aria-label="Open menu"
-        class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border text-text"
+        class="glass inline-flex h-9 w-9 items-center justify-center rounded-lg text-text"
       >
         <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M4 6h16M4 12h16M4 18h16" />
@@ -68,10 +70,7 @@ const current = Astro.url.pathname;
         links.map((link) => (
           <a
             href={link.href}
-            class:list={[
-              'text-sm font-medium',
-              current === link.href ? 'text-brand' : 'text-text-muted',
-            ]}
+            class:list={['text-sm font-medium', current === link.href ? 'text-gradient font-semibold' : 'text-text-muted']}
           >
             {link.label}
           </a>
@@ -79,7 +78,7 @@ const current = Astro.url.pathname;
       }
       <a
         href="/contact"
-        class="inline-flex w-full items-center justify-center rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white"
+        class="inline-flex w-full items-center justify-center rounded-full px-4 py-2 text-sm font-semibold text-white [background-image:var(--gradient-brand)]"
       >
         Book a Consultation
       </a>

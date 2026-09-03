@@ -1,4 +1,6 @@
 ---
+import Eyebrow from './Eyebrow.astro';
+
 interface Props {
   eyebrow?: string;
   title: string;
@@ -11,14 +13,10 @@ const { eyebrow, title, description, align = 'left', as: Tag = 'h2' } = Astro.pr
 ---
 
 <div class:list={['max-w-2xl', align === 'center' && 'mx-auto text-center']}>
-  {
-    eyebrow && (
-      <p class="text-sm font-semibold uppercase tracking-wide text-brand">{eyebrow}</p>
-    )
-  }
+  {eyebrow && <Eyebrow>{eyebrow}</Eyebrow>}
   <Tag
     class:list={[
-      'mt-2 font-bold tracking-tight text-text',
+      'mt-4 font-display font-semibold tracking-tight text-text',
       Tag === 'h1' ? 'text-4xl sm:text-5xl' : 'text-3xl sm:text-4xl',
     ]}
   >
