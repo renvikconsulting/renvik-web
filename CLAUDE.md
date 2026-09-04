@@ -1,9 +1,10 @@
 # Renvik Consulting website
 
 AI-first marketing site for Renvik Consulting (AI strategy/implementation, IT consulting, technical staffing).
-Rebuilt 2026-09 from a legacy Create React App SPA into a static Astro site, self-hosted on Cloudflare Pages.
-Full rebuild plan/history: see git log (started on `new-design-26`, PR #1; the visual redesign below landed on
-`genai-redesign-v2`).
+Rebuilt 2026-09 from a legacy Create React App SPA into a static Astro site, self-hosted on a **Cloudflare
+Worker** (not classic Cloudflare Pages — see the Deploying section below, this distinction matters and is
+easy to get wrong from older Astro/Cloudflare tutorials). Full rebuild plan/history: see git log (started on
+`new-design-26`, PR #1; the visual redesign below landed on `genai-redesign-v2`).
 
 ## Stack
 
@@ -31,13 +32,24 @@ Full rebuild plan/history: see git log (started on `new-design-26`, PR #1; the v
   generated files — the color tokens in `src/styles/global.css` were picked by literally sampling pixels out
   of `symbol.png` (red-orange `#e9433a`, magenta `#f0058c`, purple `#a42a8f`), so a new logo likely means new
   tokens too. No cyan/blue appears anywhere in the real logo — don't reintroduce it.
-- **Cloudflare Pages** hosting the static build; **one** Cloudflare Pages Function
-  (`functions/api/contact.ts`) for the contact form, the site's only dynamic endpoint.
+- **Cloudflare Workers (with static assets)** hosting the build — a `wrangler.jsonc`-configured Worker whose
+  `assets.directory` is `dist/` (the Astro static build) plus a compiled `main` Worker script that handles
+  the one dynamic route, `POST /api/contact`. Deployed via `wrangler deploy` (git-connected "Workers
+  Builds" project named `renvik-web` in the Cloudflare dashboard), **not** `pages deploy` — this project was
+  created after Cloudflare's Pages→Workers migration, so it never had a classic Pages project at all. See
+  Deploying below.
 - **Resend** for outbound email from the contact form, **Cloudflare Turnstile** for bot verification.
 
-Run locally: `npm install && npm run dev`. Build: `npm run build` (runs `astro check` first — this is a type
-check across `.astro` files and `functions/*.ts`, treat failures as real). Preview a production build:
-`npm run preview`.
+Run locally: `npm install && npm run dev`. Build: `npm run build` — runs, in order, `astro check` (type
+check across `.astro` files and `functions/*.ts`), `astro build`, the CSP-hash patch script, then
+`wrangler pages functions build --outdir=./worker-build` (compiles `functions/api/contact.ts` into the
+Worker script `wrangler.jsonc`'s `main` points at — see Deploying). That last step's command is genuinely
+named `pages functions build` even though this project deploys as a plain Worker, not Pages; it's just the
+CLI tool Cloudflare ships for compiling a `functions/` folder into a single Worker, and it still works fine
+outside a Pages project. Preview a production build with the real Worker (assets + the compiled contact-form
+route, not just Astro's own static preview): `npm run preview:worker` (runs the full build, then
+`wrangler dev`). `npm run preview` (`astro preview`) only serves the static files — it does not exercise
+`/api/contact` at all, so don't use it to sanity-check the contact form.
 
 ## Directory layout
 
@@ -50,8 +62,14 @@ check across `.astro` files and `functions/*.ts`, treat failures as real). Previ
   source of truth for color tokens (`--color-bg`, `--color-text`, `--color-brand`, etc.) — don't hardcode hex
   colors in components, use the token-backed utilities (`bg-bg`, `text-text`, `text-text-muted`, `bg-brand`,
   `border-border`, `text-accent`, ...).
-- `functions/api/contact.ts` — Cloudflare Pages Function handling `POST /api/contact`. Runs on Cloudflare's
-  Workers runtime, not Node — no Node-only APIs.
+- `functions/api/contact.ts` — handles `POST /api/contact`, written in the Pages-Functions convention
+  (`export const onRequestPost`) but compiled by `wrangler pages functions build` into `worker-build/index.js`
+  (gitignored) and run as this project's Worker `main` script — see Stack above. Runs on the Workers runtime,
+  not Node — no Node-only APIs.
+- `wrangler.jsonc` — the Worker's config: `name` (must match the `renvik-web` Workers Builds project in the
+  Cloudflare dashboard), `compatibility_date`, `main` (the compiled `worker-build/index.js`), and
+  `assets.directory` (`dist/`, the Astro static build — Workers Static Assets, same `_headers`/`_redirects`
+  convention as classic Pages, see docs/SECURITY.md).
 - `public/` — static assets served as-is: photography (`*.jpg`, one per service pillar plus the homepage
   hero — real licensed photos from Unsplash, downloaded and self-hosted rather than hotlinked; see git log
   for which ones and why if replacing any), `_headers` (security headers/CSP), `robots.txt`, `manifest.json`,
@@ -99,7 +117,8 @@ then Cloudflare Turnstile server-side verification, then basic field validation,
 Resend. Rate limiting on the endpoint is a **Cloudflare dashboard rule**, not code — see
 `docs/DEPLOYMENT.md#rate-limiting`.
 
-Required secrets (Cloudflare Pages project → Settings → Environment variables; never commit these):
+Required secrets (Cloudflare dashboard → Workers & Pages → `renvik-web` → Settings → Variables and Secrets;
+never commit these):
 `TURNSTILE_SECRET_KEY`, `RESEND_API_KEY`, `CONTACT_TO_EMAIL`, `CONTACT_FROM_EMAIL`. The Turnstile **site**
 key is public and is injected at build time as `PUBLIC_TURNSTILE_SITE_KEY`. Without it set, the page still
 renders and the form still POSTs — the Turnstile widget and its token are simply omitted, and the Function
@@ -119,6 +138,9 @@ team section) were **deliberately left out** rather than filled with placeholder
 
 ## Deploying
 
-Static build → Cloudflare Pages, `functions/` deployed automatically as Pages Functions alongside it. Full
-step-by-step (Pages project creation, custom domain, secrets, Turnstile, WAF, AI-scraper blocking) is in
-`docs/DEPLOYMENT.md` — those are Cloudflare/Resend account actions that need the user's own dashboard access.
+`npm run build` produces everything `wrangler deploy` needs: `dist/` (the static assets `wrangler.jsonc`
+points at) and `worker-build/index.js` (the compiled Worker `main` script, handling `/api/contact`). The
+Cloudflare dashboard project `renvik-web` (Workers & Pages → Workers Builds, **not** a classic Pages
+project) is git-connected with build command `npm run build`, deploy command `npx wrangler deploy`; pushing
+to `main` triggers a build+deploy automatically. Full step-by-step for the parts that need dashboard access
+(custom domain, secrets, Turnstile, WAF, AI-scraper blocking) is in `docs/DEPLOYMENT.md`.

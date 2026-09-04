@@ -8,7 +8,8 @@ stakeholder "the site is scraper-proof."
 
 ### Security headers / CSP (`public/_headers`)
 
-Cloudflare Pages reads `public/_headers` and applies it to every response. Currently set:
+Cloudflare Workers Static Assets reads `public/_headers` (copied into `dist/` by the Astro build) and
+applies it to every response — same `_headers` file convention Cloudflare Pages used. Currently set:
 
 - `Content-Security-Policy` — default-deny (`default-src 'self'`), with narrow allowances for Cloudflare
   Turnstile (`script-src`/`frame-src https://challenges.cloudflare.com`) and Google Fonts
@@ -72,9 +73,9 @@ These need the site owner's own Cloudflare account access — no agent session c
 in `docs/DEPLOYMENT.md`.
 
 - **Turnstile widget** — create the site, get the site key (→ `PUBLIC_TURNSTILE_SITE_KEY` build env var) and
-  secret key (→ `TURNSTILE_SECRET_KEY` Pages Function env var).
+  secret key (→ `TURNSTILE_SECRET_KEY` Worker env var).
 - **Rate limiting on `/api/contact`** — a Cloudflare rate-limiting rule (e.g. 5 requests/minute per IP).
-  Code-level rate limiting inside a stateless Pages Function isn't meaningful without an external store, so
+  Code-level rate limiting inside a stateless Worker route isn't meaningful without an external store, so
   this is intentionally left to the edge rule.
 - **"Block AI Scrapers and Crawlers"** — Cloudflare's own bot-management toggle (Security → Bots). This is
   the real enforcement layer behind the `robots.txt` backstop above; it blocks at the edge regardless of

@@ -1,0 +1,22 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  // Cloudflare Worker (not classic Pages) — this repo's Workers Builds
+  // project deploys via `wrangler deploy`, not `pages deploy`. See
+  // docs/DEPLOYMENT.md and CLAUDE.md for the full picture: the site is a
+  // static Astro build (`assets.directory`) plus one dynamic route
+  // (POST /api/contact), compiled from functions/api/contact.ts into
+  // `main` by `wrangler pages functions build` as part of `npm run build`
+  // (see package.json) — that command still works for compiling a
+  // functions/ folder even on a plain Workers (non-Pages) deploy.
+  "name": "renvik-web",
+  "compatibility_date": "2026-09-04",
+  "main": "./worker-build/index.js",
+  "assets": {
+    // Requests that don't match a static file in dist/ fall through to
+    // `main` (that's the default; no run_worker_first needed) - which is
+    // exactly how /api/contact, a route with no matching static file,
+    // reaches the compiled contact.ts handler.
+    "directory": "./dist",
+    "binding": "ASSETS"
+  }
+}
