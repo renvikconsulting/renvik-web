@@ -85,7 +85,7 @@ const pillars = [
   <div class="pb-16 lg:pb-24">
     {
       pillars.map((pillar, i) => (
-        <section class:list={['border-t border-border py-16', i % 2 === 1 && 'bg-bg-raised']}>
+        <section class="border-t border-border py-16">
           <Container>
             <div
               class:list={[
@@ -93,16 +93,19 @@ const pillars = [
                 i % 2 === 1 && 'lg:[&>*:first-child]:order-2',
               ]}
             >
-              <img
-                src={pillar.image.src}
-                alt={pillar.image.alt}
-                class="aspect-[4/3] w-full rounded-2xl object-cover shadow-[var(--shadow-card)]"
-                loading="lazy"
-                width="640"
-                height="480"
-              />
+              <div class="gradient-ring rounded-2xl">
+                <img
+                  src={pillar.image.src}
+                  alt={pillar.image.alt}
+                  class="aspect-[4/3] w-full rounded-2xl object-cover"
+                  loading="lazy"
+                  width="640"
+                  height="480"
+                />
+              </div>
               <div>
-                <h2 class="text-2xl font-bold text-text sm:text-3xl">{pillar.title}</h2>
+                <span class="font-mono text-xs text-text-muted">{String(i + 1).padStart(2, '0')}</span>
+                <h2 class="mt-2 font-display text-2xl font-bold text-text sm:text-3xl">{pillar.title}</h2>
                 <p class="mt-4 text-text-muted">{pillar.description}</p>
                 <ul class="mt-6 flex flex-col gap-2">
                   {pillar.points.map((point) => (
@@ -128,9 +131,10 @@ const pillars = [
     }
   </div>
 
-  <section class="border-t border-border py-16 text-center lg:py-24">
-    <Container>
-      <h2 class="text-2xl font-bold text-text sm:text-3xl">Not sure which service line fits?</h2>
+  <section class="relative overflow-hidden border-t border-border py-16 text-center lg:py-24">
+    <div class="blob h-[320px] w-[320px] left-1/2 top-0 -translate-x-1/2 bg-brand opacity-30"></div>
+    <Container class="relative">
+      <h2 class="font-display text-2xl font-bold text-text sm:text-3xl">Not sure which service line fits?</h2>
       <p class="mx-auto mt-3 max-w-xl text-text-muted">
         That's exactly what the first conversation is for. Tell us the problem and we'll tell you honestly whether AI is the right tool for it.
       </p>

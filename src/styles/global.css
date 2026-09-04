@@ -1,73 +1,134 @@
 @import "tailwindcss";
 
 /*
- * Theme tokens.
- * - No [data-theme] attribute  -> follow system (prefers-color-scheme).
- * - [data-theme="light"|"dark"] -> explicit user override, set by
- *   ThemeToggle.astro and persisted to localStorage. Applied before paint
- *   by the inline script in BaseLayout.astro (see docs/SECURITY.md for the
- *   matching CSP script-src hash).
+ * Design system v2 - "Bold AI-native": dark-first, gradient-mesh glows,
+ * glassmorphism surfaces, mono accents. Still fully supports light mode
+ * (system preference + persisted override) per the original requirement -
+ * see BaseLayout.astro for the pre-paint script and CLAUDE.md#theming.
+ *
+ * Brand colors are sampled directly from public/symbol.png and
+ * public/logo.png (not invented): red-orange #e9433a, magenta #f0058c,
+ * purple #a42a8f are the three dominant hues in the mark and match the
+ * wordmark's own "RENVIK" (red-orange) / "CONSULTING" (purple) colors.
+ * No cyan/blue appears anywhere in the real logo. Light-mode values are
+ * the same hues deepened for 4.5:1+ text/icon contrast against
+ * --color-bg (raw values read closer to 3.7-3.9:1 on white) - see
+ * conversation history for the exact contrast computation if these ever
+ * need revisiting.
+ *
+ * No [data-theme] attribute -> follow system (prefers-color-scheme).
+ * [data-theme="light"|"dark"] -> explicit user override.
  */
 :root {
-  color-scheme: light;
+  color-scheme: dark;
 
-  --color-bg: #fafafa;
-  --color-bg-raised: #ffffff;
-  --color-text: #0f172a;
-  --color-text-muted: #475569;
-  --color-border: #e2e8f0;
+  --color-bg: #06070d;
+  --color-surface: #0d0f1c;
+  --color-surface-translucent: rgba(18, 20, 36, 0.6);
+  --color-text: #f1f2f8;
+  --color-text-muted: #9498b3;
+  --color-border: rgba(255, 255, 255, 0.09);
+  --color-border-strong: rgba(255, 255, 255, 0.18);
 
-  --color-brand: #4338ca;
-  --color-brand-hover: #3730a3;
-  --color-accent: #0891b2;
+  --color-brand: #f0058c;
+  --color-brand-hover: #fb37a8;
+  --color-accent: #ce3eb5;
 
-  --shadow-card: 0 1px 2px rgba(15, 23, 42, 0.06), 0 8px 24px -12px rgba(15, 23, 42, 0.12);
+  --gradient-brand: linear-gradient(135deg, #e9433a 0%, #f0058c 50%, #a42a8f 100%);
+  --shadow-card: 0 1px 1px rgba(0, 0, 0, 0.3), 0 16px 40px -16px rgba(0, 0, 0, 0.6);
+  --shadow-glow: 0 0 1px rgba(240, 5, 140, 0.4), 0 0 48px -8px rgba(240, 5, 140, 0.45);
+  --grid-line: rgba(255, 255, 255, 0.05);
+  /* Tuned against WCAG contrast math, not guessed: at the brand magenta's
+     actual luminance, 0.28 is roughly the ceiling before muted body text
+     sitting over a blob drops under 4.5:1 against the blended background.
+     (An earlier 0.55 dark-mode value, carried over from a less-saturated
+     placeholder brand color, tested at ~3.4:1 - visibly too washed out.)
+     Light mode needs a much lower value still (set in the light blocks
+     below) since the background itself starts near-white. */
+  --blob-opacity: 0.28;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    color-scheme: dark;
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    color-scheme: light;
 
-    --color-bg: #0b1120;
-    --color-bg-raised: #131c31;
-    --color-text: #e2e8f0;
-    --color-text-muted: #94a3b8;
-    --color-border: #253044;
+    --color-bg: #f8f8fc;
+    --color-surface: #ffffff;
+    --color-surface-translucent: rgba(255, 255, 255, 0.72);
+    --color-text: #0f1222;
+    --color-text-muted: #565973;
+    --color-border: rgba(15, 15, 35, 0.09);
+    --color-border-strong: rgba(15, 15, 35, 0.16);
 
-    --color-brand: #818cf8;
-    --color-brand-hover: #a5b4fc;
-    --color-accent: #22d3ee;
+    --color-brand: #b40469;
+    --color-brand-hover: #750344;
+    --color-accent: #a42a8f;
 
-    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px -12px rgba(0, 0, 0, 0.5);
+    --gradient-brand: linear-gradient(135deg, #d12117 0%, #b40469 50%, #a42a8f 100%);
+    --shadow-card: 0 1px 2px rgba(15, 23, 42, 0.06), 0 12px 28px -14px rgba(15, 23, 42, 0.16);
+    --shadow-glow: 0 0 1px rgba(180, 4, 105, 0.25), 0 0 40px -14px rgba(180, 4, 105, 0.35);
+    --grid-line: rgba(15, 15, 35, 0.05);
+    --blob-opacity: 0.16;
   }
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  --color-bg: #f8f8fc;
+  --color-surface: #ffffff;
+  --color-surface-translucent: rgba(255, 255, 255, 0.72);
+  --color-text: #0f1222;
+  --color-text-muted: #565973;
+  --color-border: rgba(15, 15, 35, 0.09);
+  --color-border-strong: rgba(15, 15, 35, 0.16);
+
+  --color-brand: #b40469;
+  --color-brand-hover: #750344;
+  --color-accent: #a42a8f;
+
+  --gradient-brand: linear-gradient(135deg, #d12117 0%, #b40469 50%, #a42a8f 100%);
+  --shadow-card: 0 1px 2px rgba(15, 23, 42, 0.06), 0 12px 28px -14px rgba(15, 23, 42, 0.16);
+  --shadow-glow: 0 0 1px rgba(180, 4, 105, 0.25), 0 0 40px -14px rgba(180, 4, 105, 0.35);
+  --grid-line: rgba(15, 15, 35, 0.05);
+  --blob-opacity: 0.16;
 }
 
 :root[data-theme="dark"] {
   color-scheme: dark;
 
-  --color-bg: #0b1120;
-  --color-bg-raised: #131c31;
-  --color-text: #e2e8f0;
-  --color-text-muted: #94a3b8;
-  --color-border: #253044;
+  --color-bg: #06070d;
+  --color-surface: #0d0f1c;
+  --color-surface-translucent: rgba(18, 20, 36, 0.6);
+  --color-text: #f1f2f8;
+  --color-text-muted: #9498b3;
+  --color-border: rgba(255, 255, 255, 0.09);
+  --color-border-strong: rgba(255, 255, 255, 0.18);
 
-  --color-brand: #818cf8;
-  --color-brand-hover: #a5b4fc;
-  --color-accent: #22d3ee;
+  --color-brand: #f0058c;
+  --color-brand-hover: #fb37a8;
+  --color-accent: #ce3eb5;
 
-  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px -12px rgba(0, 0, 0, 0.5);
+  --gradient-brand: linear-gradient(135deg, #e9433a 0%, #f0058c 50%, #a42a8f 100%);
+  --shadow-card: 0 1px 1px rgba(0, 0, 0, 0.3), 0 16px 40px -16px rgba(0, 0, 0, 0.6);
+  --shadow-glow: 0 0 1px rgba(240, 5, 140, 0.4), 0 0 48px -8px rgba(240, 5, 140, 0.45);
+  --grid-line: rgba(255, 255, 255, 0.05);
+  --blob-opacity: 0.28;
 }
 
 @theme inline {
   --color-bg: var(--color-bg);
-  --color-bg-raised: var(--color-bg-raised);
+  --color-surface: var(--color-surface);
   --color-text: var(--color-text);
   --color-text-muted: var(--color-text-muted);
   --color-border: var(--color-border);
+  --color-border-strong: var(--color-border-strong);
   --color-brand: var(--color-brand);
   --color-brand-hover: var(--color-brand-hover);
   --color-accent: var(--color-accent);
   --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-display: "Space Grotesk", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
 }
 
 html {
@@ -78,17 +139,80 @@ body {
   background-color: var(--color-bg);
   color: var(--color-text);
   font-family: var(--font-sans);
-  transition: background-color 0.15s ease, color 0.15s ease;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 ::selection {
-  background-color: var(--color-brand);
+  background: var(--color-brand);
   color: white;
 }
 
 :focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
+}
+
+/* ---- Bold AI-native primitives ---- */
+
+/* Subtle dot-grid texture. Usage: <div class="bg-grid"> */
+.bg-grid {
+  background-image: radial-gradient(var(--grid-line) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+/* Gradient text (headline highlight phrases). */
+.text-gradient {
+  background-image: var(--gradient-brand);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+}
+
+/* Glass surface for cards/nav/panels. */
+.glass {
+  background-color: var(--color-surface-translucent);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--color-border);
+}
+
+/* 1px gradient-ring wrapper: put .gradient-ring plus a rounded-* utility on
+   a wrapper div; give its single child the same rounded-* value so the
+   1px gradient padding reads as a ring around it. */
+.gradient-ring {
+  background-image: var(--gradient-brand);
+  padding: 1px;
+}
+
+.glow-hover {
+  transition: box-shadow 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
+}
+.glow-hover:hover {
+  box-shadow: var(--shadow-glow);
+  border-color: var(--color-border-strong);
+}
+
+/* Slow-drifting gradient blobs behind hero sections. Pure CSS, paused for
+   users who asked for reduced motion. */
+@keyframes drift {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(3%, -4%) scale(1.08); }
+}
+.blob {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(70px);
+  opacity: var(--blob-opacity);
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .blob {
+    animation: drift 16s ease-in-out infinite;
+  }
+  /* Second blob in a section: offset so the two don't drift in lockstep. */
+  .blob-alt {
+    animation-delay: -8s;
+  }
 }
 
 /*

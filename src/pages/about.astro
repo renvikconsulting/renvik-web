@@ -1,6 +1,7 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
 import Container from '../components/Container.astro';
+import Eyebrow from '../components/Eyebrow.astro';
 import SectionHeading from '../components/SectionHeading.astro';
 
 const values = [
@@ -16,43 +17,51 @@ const values = [
   title="About"
   description="Renvik Consulting pairs over a decade of enterprise IT delivery experience with a practical, ROI-first approach to AI strategy and implementation."
 >
-  <section class="py-16 lg:py-24">
-    <Container class="max-w-3xl">
-      <p class="text-sm font-semibold uppercase tracking-wide text-brand">About Us</p>
-      <h1 class="mt-3 text-4xl font-bold tracking-tight text-text sm:text-5xl">Reimagine with us</h1>
+  <section class="relative overflow-hidden py-16 lg:py-24">
+    <div class="blob h-[360px] w-[360px] -right-40 -top-24 bg-brand"></div>
+
+    <Container class="relative max-w-3xl">
+      <Eyebrow>About Us</Eyebrow>
+      <h1 class="mt-6 font-display text-4xl font-bold tracking-tight text-text sm:text-5xl">
+        Reimagine with <span class="text-gradient">us</span>
+      </h1>
       <p class="mt-6 text-lg text-text-muted">
         Renvik Consulting specializes in AI strategy and implementation, IT consulting, and technical staffing.
         We pair over a decade of enterprise IT delivery experience with a practical, ROI-first approach to
         helping organizations adopt AI &mdash; and we bring the staffing bench to execute on it.
       </p>
 
-      <div class="mt-16 grid gap-10 sm:grid-cols-2">
-        <div>
-          <h2 class="text-xl font-semibold text-text">Mission</h2>
-          <p class="mt-3 text-text-muted">
-            To help organizations adopt AI responsibly and effectively, pairing deep technical expertise
-            with pragmatic delivery &mdash; so AI projects ship instead of stalling in pilot.
-          </p>
+      <div class="mt-16 grid gap-6 sm:grid-cols-2">
+        <div class="gradient-ring rounded-2xl">
+          <div class="glass rounded-2xl p-6">
+            <h2 class="font-display text-xl font-semibold text-text">Mission</h2>
+            <p class="mt-3 text-text-muted">
+              To help organizations adopt AI responsibly and effectively, pairing deep technical expertise
+              with pragmatic delivery &mdash; so AI projects ship instead of stalling in pilot.
+            </p>
+          </div>
         </div>
-        <div>
-          <h2 class="text-xl font-semibold text-text">Vision</h2>
-          <p class="mt-3 text-text-muted">
-            To be the trusted AI and technology partner for organizations navigating the shift toward
-            AI-native operations, recognized for expertise and real-world impact.
-          </p>
+        <div class="gradient-ring rounded-2xl">
+          <div class="glass rounded-2xl p-6">
+            <h2 class="font-display text-xl font-semibold text-text">Vision</h2>
+            <p class="mt-3 text-text-muted">
+              To be the trusted AI and technology partner for organizations navigating the shift toward
+              AI-native operations, recognized for expertise and real-world impact.
+            </p>
+          </div>
         </div>
       </div>
     </Container>
   </section>
 
-  <section class="border-t border-border bg-bg-raised py-16 lg:py-24">
+  <section class="border-t border-border py-16 lg:py-24">
     <Container>
       <SectionHeading eyebrow="What guides us" title="Our values" align="left" />
-      <div class="mt-12 grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+      <div class="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {
           values.map((value) => (
-            <div>
-              <h3 class="font-semibold text-text">{value.title}</h3>
+            <div class="rounded-2xl border border-border p-6 transition-colors hover:border-border-strong">
+              <h3 class="font-display font-semibold text-text">{value.title}</h3>
               <p class="mt-2 text-sm text-text-muted">{value.copy}</p>
             </div>
           ))
