@@ -13,11 +13,8 @@ const current = Astro.url.pathname;
 
 <header class="sticky top-0 z-50 border-b border-border bg-bg/70 backdrop-blur-xl">
   <Container class="flex h-16 items-center justify-between">
-    <a href="/" class="flex items-center gap-2.5 font-display font-bold text-text">
-      <span class="gradient-ring rounded-lg">
-        <img src="/logo.jpeg" alt="Renvik Consulting" class="h-8 w-8 rounded-[7px] object-cover" />
-      </span>
-      <span>Renvik Consulting</span>
+    <a href="/" aria-label="Renvik Consulting home">
+      <img src="/logo-wide.png" alt="Renvik Consulting" class="h-9 w-auto" width="1200" height="373" />
     </a>
 
     <nav class="hidden items-center gap-8 md:flex">

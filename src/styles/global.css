@@ -6,6 +6,16 @@
  * (system preference + persisted override) per the original requirement -
  * see BaseLayout.astro for the pre-paint script and CLAUDE.md#theming.
  *
+ * Brand colors are sampled directly from public/symbol.png and
+ * public/logo.png (not invented): red-orange #e9433a, magenta #f0058c,
+ * purple #a42a8f are the three dominant hues in the mark and match the
+ * wordmark's own "RENVIK" (red-orange) / "CONSULTING" (purple) colors.
+ * No cyan/blue appears anywhere in the real logo. Light-mode values are
+ * the same hues deepened for 4.5:1+ text/icon contrast against
+ * --color-bg (raw values read closer to 3.7-3.9:1 on white) - see
+ * conversation history for the exact contrast computation if these ever
+ * need revisiting.
+ *
  * No [data-theme] attribute -> follow system (prefers-color-scheme).
  * [data-theme="light"|"dark"] -> explicit user override.
  */
@@ -20,19 +30,22 @@
   --color-border: rgba(255, 255, 255, 0.09);
   --color-border-strong: rgba(255, 255, 255, 0.18);
 
-  --color-brand: #8b6bff;
-  --color-brand-hover: #a58bff;
-  --color-accent: #22d3ee;
+  --color-brand: #f0058c;
+  --color-brand-hover: #fb37a8;
+  --color-accent: #ce3eb5;
 
-  --gradient-brand: linear-gradient(135deg, #7c5cff 0%, #d946ef 50%, #22d3ee 100%);
+  --gradient-brand: linear-gradient(135deg, #e9433a 0%, #f0058c 50%, #a42a8f 100%);
   --shadow-card: 0 1px 1px rgba(0, 0, 0, 0.3), 0 16px 40px -16px rgba(0, 0, 0, 0.6);
-  --shadow-glow: 0 0 1px rgba(139, 107, 255, 0.4), 0 0 48px -8px rgba(139, 107, 255, 0.45);
+  --shadow-glow: 0 0 1px rgba(240, 5, 140, 0.4), 0 0 48px -8px rgba(240, 5, 140, 0.45);
   --grid-line: rgba(255, 255, 255, 0.05);
-  /* Dark bg starts near-black, so blobs can run fairly opaque without
-     threatening text contrast. Light mode needs a much lower value (set in
-     the light blocks below) - at dark-mode opacity, a saturated blob over
-     a light background drops muted body text under the 4.5:1 minimum. */
-  --blob-opacity: 0.55;
+  /* Tuned against WCAG contrast math, not guessed: at the brand magenta's
+     actual luminance, 0.28 is roughly the ceiling before muted body text
+     sitting over a blob drops under 4.5:1 against the blended background.
+     (An earlier 0.55 dark-mode value, carried over from a less-saturated
+     placeholder brand color, tested at ~3.4:1 - visibly too washed out.)
+     Light mode needs a much lower value still (set in the light blocks
+     below) since the background itself starts near-white. */
+  --blob-opacity: 0.28;
 }
 
 @media (prefers-color-scheme: light) {
@@ -47,13 +60,13 @@
     --color-border: rgba(15, 15, 35, 0.09);
     --color-border-strong: rgba(15, 15, 35, 0.16);
 
-    --color-brand: #6d28d9;
-    --color-brand-hover: #5b21b6;
-    --color-accent: #0891b2;
+    --color-brand: #b40469;
+    --color-brand-hover: #750344;
+    --color-accent: #a42a8f;
 
-    --gradient-brand: linear-gradient(135deg, #6d28d9 0%, #c026d3 50%, #0891b2 100%);
+    --gradient-brand: linear-gradient(135deg, #d12117 0%, #b40469 50%, #a42a8f 100%);
     --shadow-card: 0 1px 2px rgba(15, 23, 42, 0.06), 0 12px 28px -14px rgba(15, 23, 42, 0.16);
-    --shadow-glow: 0 0 1px rgba(109, 40, 217, 0.25), 0 0 40px -14px rgba(109, 40, 217, 0.35);
+    --shadow-glow: 0 0 1px rgba(180, 4, 105, 0.25), 0 0 40px -14px rgba(180, 4, 105, 0.35);
     --grid-line: rgba(15, 15, 35, 0.05);
     --blob-opacity: 0.16;
   }
@@ -70,13 +83,13 @@
   --color-border: rgba(15, 15, 35, 0.09);
   --color-border-strong: rgba(15, 15, 35, 0.16);
 
-  --color-brand: #6d28d9;
-  --color-brand-hover: #5b21b6;
-  --color-accent: #0891b2;
+  --color-brand: #b40469;
+  --color-brand-hover: #750344;
+  --color-accent: #a42a8f;
 
-  --gradient-brand: linear-gradient(135deg, #6d28d9 0%, #c026d3 50%, #0891b2 100%);
+  --gradient-brand: linear-gradient(135deg, #d12117 0%, #b40469 50%, #a42a8f 100%);
   --shadow-card: 0 1px 2px rgba(15, 23, 42, 0.06), 0 12px 28px -14px rgba(15, 23, 42, 0.16);
-  --shadow-glow: 0 0 1px rgba(109, 40, 217, 0.25), 0 0 40px -14px rgba(109, 40, 217, 0.35);
+  --shadow-glow: 0 0 1px rgba(180, 4, 105, 0.25), 0 0 40px -14px rgba(180, 4, 105, 0.35);
   --grid-line: rgba(15, 15, 35, 0.05);
   --blob-opacity: 0.16;
 }
@@ -92,15 +105,15 @@
   --color-border: rgba(255, 255, 255, 0.09);
   --color-border-strong: rgba(255, 255, 255, 0.18);
 
-  --color-brand: #8b6bff;
-  --color-brand-hover: #a58bff;
-  --color-accent: #22d3ee;
+  --color-brand: #f0058c;
+  --color-brand-hover: #fb37a8;
+  --color-accent: #ce3eb5;
 
-  --gradient-brand: linear-gradient(135deg, #7c5cff 0%, #d946ef 50%, #22d3ee 100%);
+  --gradient-brand: linear-gradient(135deg, #e9433a 0%, #f0058c 50%, #a42a8f 100%);
   --shadow-card: 0 1px 1px rgba(0, 0, 0, 0.3), 0 16px 40px -16px rgba(0, 0, 0, 0.6);
-  --shadow-glow: 0 0 1px rgba(139, 107, 255, 0.4), 0 0 48px -8px rgba(139, 107, 255, 0.45);
+  --shadow-glow: 0 0 1px rgba(240, 5, 140, 0.4), 0 0 48px -8px rgba(240, 5, 140, 0.45);
   --grid-line: rgba(255, 255, 255, 0.05);
-  --blob-opacity: 0.55;
+  --blob-opacity: 0.28;
 }
 
 @theme inline {

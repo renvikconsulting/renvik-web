@@ -15,7 +15,7 @@ Full rebuild plan/history: see git log (started on `new-design-26`, PR #1; the v
 - **Tailwind CSS v4** via `@tailwindcss/vite` (no separate `@astrojs/tailwind` integration, no `tailwind.config.js`
   — v4 is CSS-config-first, see `src/styles/global.css`).
 - **Design language (v2 — "Bold AI-native")**: dark-first, gradient-mesh glow blobs, glassmorphism cards, a
-  violet→fuchsia→cyan brand gradient, mono accents (JetBrains Mono) for eyebrow badges/numbering, Space
+  red-orange→magenta→purple brand gradient, mono accents (JetBrains Mono) for eyebrow badges/numbering, Space
   Grotesk for headings. Chosen over two other directions considered and rejected: a light "premium
   editorial/minimal" look, and a "warm human-forward" look — both read as generic-consultancy rather than
   AI-native; see conversation history for the tradeoffs if the direction is revisited. The reusable primitives
@@ -23,6 +23,14 @@ Full rebuild plan/history: see git log (started on `new-design-26`, PR #1; the v
   `.bg-grid`, `.glow-hover`) — reach for those instead of writing new ad-hoc gradient/blur CSS per component.
   The v1 design (AstroWind-inspired, light-first, plain cards) is still in `new-design-26`'s history if you
   need to compare.
+- **Brand colors are sampled from the real logo**, not invented: `brand-assets/logo.png` (horizontal lockup)
+  and `brand-assets/symbol.png` (icon mark) are the source files the client provided — those two are kept
+  out of `public/` (700KB/568KB originals, only needed for regenerating derivatives, not for serving) and
+  `public/logo-wide.png`, `favicon.ico`, `logo192.png`, `logo512.png`, `apple-touch-icon.png` are optimized
+  exports generated from them. If the logo ever changes, redo that export pass rather than hand-editing the
+  generated files — the color tokens in `src/styles/global.css` were picked by literally sampling pixels out
+  of `symbol.png` (red-orange `#e9433a`, magenta `#f0058c`, purple `#a42a8f`), so a new logo likely means new
+  tokens too. No cyan/blue appears anywhere in the real logo — don't reintroduce it.
 - **Cloudflare Pages** hosting the static build; **one** Cloudflare Pages Function
   (`functions/api/contact.ts`) for the contact form, the site's only dynamic endpoint.
 - **Resend** for outbound email from the contact form, **Cloudflare Turnstile** for bot verification.
@@ -44,8 +52,12 @@ check across `.astro` files and `functions/*.ts`, treat failures as real). Previ
   `border-border`, `text-accent`, ...).
 - `functions/api/contact.ts` — Cloudflare Pages Function handling `POST /api/contact`. Runs on Cloudflare's
   Workers runtime, not Node — no Node-only APIs.
-- `public/` — static assets served as-is: product photos (`*.jpg`, reused across Home/Services), `_headers`
-  (security headers/CSP), `robots.txt`, `manifest.json`, favicon.
+- `public/` — static assets served as-is: photography (`*.jpg`, one per service pillar plus the homepage
+  hero — real licensed photos from Unsplash, downloaded and self-hosted rather than hotlinked; see git log
+  for which ones and why if replacing any), `_headers` (security headers/CSP), `robots.txt`, `manifest.json`,
+  favicon/logo exports.
+- `brand-assets/` — original high-res logo source files (not served; see Stack above for how they relate to
+  `public/`'s generated logo/favicon files).
 - `docs/DEPLOYMENT.md` — manual Cloudflare/Resend setup steps (account-gated actions no agent can perform).
 - `docs/SECURITY.md` — what's implemented in code vs. what must be enabled in the Cloudflare dashboard, and
   the realistic scope of "bot/scraper protection" for a public marketing site.
