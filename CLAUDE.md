@@ -113,16 +113,21 @@ route, not just Astro's own static preview): `npm run preview:worker` (runs the 
 
 `src/pages/contact.astro` posts JSON to `/api/contact` (`functions/api/contact.ts`). Defense layers, in
 order: a visually-hidden honeypot field (`website`) — any bot that fills it gets a fake success response —
-then Cloudflare Turnstile server-side verification, then basic field validation, then the email send via
-Resend. Rate limiting on the endpoint is a **Cloudflare dashboard rule**, not code — see
-`docs/DEPLOYMENT.md#rate-limiting`.
+then basic field validation, then the canonical Cloudflare Turnstile siteverify gate (`success`, the
+`contact` action, and a hostname in the `TURNSTILE_HOSTNAMES` allowlist), then the email send via Resend.
+The frontend renders the widget explicitly (`api.js?render=explicit`, retained widget id, `reset` in
+`finally` after every submission attempt — tokens are single-use). Rate limiting on the endpoint is a
+**Cloudflare dashboard rule**, not code — see `docs/DEPLOYMENT.md#rate-limiting`.
 
 Required secrets (Cloudflare dashboard → Workers & Pages → `renvik-web` → Settings → Variables and Secrets;
 never commit these):
-`TURNSTILE_SECRET_KEY`, `RESEND_API_KEY`, `CONTACT_TO_EMAIL`, `CONTACT_FROM_EMAIL`. The Turnstile **site**
-key is public and is injected at build time as `PUBLIC_TURNSTILE_SITE_KEY`. Without it set, the page still
-renders and the form still POSTs — the Turnstile widget and its token are simply omitted, and the Function
-will reject the submission for a missing token. Don't treat that as a bug when testing locally without the key.
+`TURNSTILE_SECRET_KEY`, `RESEND_API_KEY`, plus the plain variables `CONTACT_TO_EMAIL`, `CONTACT_FROM_EMAIL`
+and `TURNSTILE_HOSTNAMES` (comma-separated frontend hostnames the siteverify gate accepts — production:
+`renvikconsulting.com,www.renvikconsulting.com`; local dev gets these from the gitignored `.env`). The
+Turnstile **site** key is public and is injected at build time as `PUBLIC_TURNSTILE_SITE_KEY`
+(`0x4AAAAAAEryb8oOvhAAP-GH`). Without it set, the page still renders and the form still POSTs — the
+Turnstile widget and its token are simply omitted, and the Function will reject the submission for a
+missing token. Don't treat that as a bug when testing locally without the key.
 
 ## Content honesty — read before adding "proof" content
 

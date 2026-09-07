@@ -51,7 +51,10 @@ Consequences worth knowing:
    some bots specifically skip `display:none` fields when filling forms). Any non-empty value is treated as
    spam; the Function returns a fake success so the bot doesn't learn the field is a trap.
 2. **Turnstile** — the token from Cloudflare's Turnstile widget is verified server-side against
-   `https://challenges.cloudflare.com/turnstile/v0/siteverify` before anything is sent.
+   `https://challenges.cloudflare.com/turnstile/v0/siteverify` before anything is sent. The endpoint
+   requires `success`, the stable `contact` action, and a hostname inside the `TURNSTILE_HOSTNAMES`
+   allowlist — so a token minted on any other origin (e.g. a phishing page embedding the same widget) is
+   rejected.
 3. **Field validation** — length limits and an email-shape check, server-side (never trust client validation).
 
 ### AI-crawler blocking backstop (`public/robots.txt`)
@@ -72,8 +75,9 @@ executes JavaScript (see "not achievable" below).
 These need the site owner's own Cloudflare account access — no agent session can create them. Full steps
 in `docs/DEPLOYMENT.md`.
 
-- **Turnstile widget** — create the site, get the site key (→ `PUBLIC_TURNSTILE_SITE_KEY` build env var) and
-  secret key (→ `TURNSTILE_SECRET_KEY` Worker env var).
+- **Turnstile widget** — already created (site key `0x4AAAAAAEryb8oOvhAAP-GH` → `PUBLIC_TURNSTILE_SITE_KEY`
+  build env var); the secret key → `TURNSTILE_SECRET_KEY` Worker secret, plus the plain variable
+  `TURNSTILE_HOSTNAMES` (frontend hostnames the siteverify gate accepts).
 - **Rate limiting on `/api/contact`** — a Cloudflare rate-limiting rule (e.g. 5 requests/minute per IP).
   Code-level rate limiting inside a stateless Worker route isn't meaningful without an external store, so
   this is intentionally left to the edge rule.

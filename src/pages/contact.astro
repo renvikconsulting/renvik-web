@@ -112,7 +112,13 @@ const phoneEncoded = Buffer.from(contactPhone).toString('base64');
 
             {
               turnstileSiteKey && (
-                <div class="cf-turnstile" data-sitekey={turnstileSiteKey} data-theme="auto" />
+                <div
+                  id="contact-turnstile"
+                  class="cf-turnstile"
+                  data-sitekey={turnstileSiteKey}
+                  data-action="contact"
+                  data-theme="auto"
+                />
               )
             }
 
@@ -130,11 +136,6 @@ const phoneEncoded = Buffer.from(contactPhone).toString('base64');
     </Container>
   </section>
 
-  {
-    turnstileSiteKey && (
-      <script is:inline src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer />
-    )
-  }
 </BaseLayout>
 
 <script>
@@ -161,6 +162,44 @@ const phoneEncoded = Buffer.from(contactPhone).toString('base64');
 <script>
   const form = document.getElementById('contact-form');
   const status = document.getElementById('form-status');
+
+  // Turnstile (explicit render): the widget div above only exists when
+  // PUBLIC_TURNSTILE_SITE_KEY was set at build time, so when it's missing
+  // this is a no-op and the api.js script is never requested. Tokens are
+  // single-use: after every same-page submission attempt the widget is
+  // reset (with the retained widget id) so a retry gets a fresh token -
+  // resubmitting a redeemed token would always fail siteverify.
+  type TurnstileApi = {
+    render: (
+      container: HTMLElement,
+      options: { sitekey: string; action: string; theme?: 'light' | 'dark' | 'auto' },
+    ) => string;
+    reset: (widgetId: string) => void;
+  };
+  const turnstileWindow = window as Window & { turnstile?: TurnstileApi };
+  const turnstileContainer = document.getElementById('contact-turnstile');
+  let contactWidgetId: string | undefined;
+
+  const renderContactTurnstile = () => {
+    if (!turnstileWindow.turnstile || !turnstileContainer) return;
+    contactWidgetId = turnstileWindow.turnstile.render(turnstileContainer, {
+      sitekey: turnstileContainer.dataset.sitekey!,
+      action: 'contact',
+      theme: 'auto',
+    });
+  };
+
+  if (turnstileContainer) {
+    if (turnstileWindow.turnstile) {
+      renderContactTurnstile();
+    } else {
+      const script = document.createElement('script');
+      script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+      script.async = true;
+      script.addEventListener('load', renderContactTurnstile, { once: true });
+      document.head.appendChild(script);
+    }
+  }
 
   form?.addEventListener('submit', async (event) => {
     event.preventDefault();
@@ -192,13 +231,12 @@ const phoneEncoded = Buffer.from(contactPhone).toString('base64');
       status.textContent = "Thanks - we'll be in touch shortly.";
       status.className = 'text-sm text-emerald-500';
       form.reset();
-      // @ts-ignore - Turnstile global loaded from challenges.cloudflare.com
-      window.turnstile?.reset?.();
     } catch (err) {
       status.textContent = 'Something went wrong sending your message. Please try emailing us directly.';
       status.className = 'text-sm text-red-500';
     } finally {
       if (submitButton instanceof HTMLButtonElement) submitButton.disabled = false;
+      if (contactWidgetId !== undefined) turnstileWindow.turnstile?.reset(contactWidgetId);
     }
   });
 </script>
