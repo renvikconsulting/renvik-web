@@ -33,13 +33,24 @@ nameservers at the registrar.
 
 ## 3. Turnstile
 
-1. **Turnstile** (left sidebar) → **Add site**. Domain: your production domain. Widget mode: **Managed**.
-2. Copy the **Site Key** → the Worker's **Settings** → **Variables and Secrets** → add
-   `PUBLIC_TURNSTILE_SITE_KEY` — this is a *build-time* variable baked into the static HTML by Astro, so a
-   change here needs a rebuild+redeploy (pushing to `main`, or re-running the Workers Build) to take effect.
-3. Copy the **Secret Key** → same screen → add `TURNSTILE_SECRET_KEY` as a **secret** (not a plain
-   variable) — this one is read at request time by the compiled `functions/api/contact.ts` logic, never
-   shipped to the browser.
+The widget is already created (managed mode), site key `0x4AAAAAAEryb8oOvhAAP-GH`. Its registered domains
+must cover the hostnames the form is served from: production `renvikconsulting.com` and
+`www.renvikconsulting.com`, plus `localhost` and `127.0.0.1` if local development should pass verification
+(siteverify rejects tokens from any hostname the widget doesn't list). If the widget is missing any of
+them, add them in the dashboard (Turnstile → widget → Edit → Domains).
+
+1. **Build variable** → the Workers Builds project's build environment → add
+   `PUBLIC_TURNSTILE_SITE_KEY=0x4AAAAAAEryb8oOvhAAP-GH`. This is a *build-time* variable baked into the
+   static HTML by Astro (the site key is public by design), so a change needs a rebuild+redeploy (pushing
+   to `main`, or re-running the Workers Build) to take effect. Local dev reads it from the gitignored
+   `.env` instead.
+2. **Secret** → the Worker's **Settings** → **Variables and Secrets** → add `TURNSTILE_SECRET_KEY` as a
+   **secret** (not a plain variable) — read at request time by the compiled `functions/api/contact.ts`
+   logic, never shipped to the browser.
+3. **Hostname allowlist** → same screen → add a plain variable
+   `TURNSTILE_HOSTNAMES=renvikconsulting.com,www.renvikconsulting.com`. The contact endpoint rejects any
+   submission whose siteverify hostname isn't in this list, so a production value must never include
+   `localhost` or `127.0.0.1`.
 4. **Verify the CSP doesn't silently break the widget**: `public/_headers`' `connect-src` is `'self'` only.
    Turnstile's widget runs inside a cross-origin iframe with its own CSP context, so this should be fine —
    but confirm it for real: after the site key is live, open `/contact` with devtools open, solve the

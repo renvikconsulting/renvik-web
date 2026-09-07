@@ -18,5 +18,17 @@
     // reaches the compiled contact.ts handler.
     "directory": "./dist",
     "binding": "ASSETS"
-  }
+  },
+	"observability": {
+		"traces": {
+			"enabled": true,
+			// set tracing sampling rate to 5% -- 0.05
+			"head_sampling_rate": 1
+		},
+		"logs": {
+			"enabled": true,
+			// set logging sampling rate to 60% -- 0.6
+			"head_sampling_rate": 1
+		}
+	}
 }

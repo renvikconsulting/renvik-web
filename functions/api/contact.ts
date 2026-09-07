@@ -3,11 +3,15 @@
 // This is the site's only dynamic endpoint; everything else is static.
 // Flow: honeypot check -> field validation -> Turnstile server-side
 // verification -> send via Resend. Required secrets/vars (set in the
-// Cloudflare Pages dashboard, not committed here) are documented in
+// Cloudflare dashboard, never committed) are documented in
 // docs/DEPLOYMENT.md#contact-form-secrets.
 
 interface Env {
   TURNSTILE_SECRET_KEY: string;
+  // Comma-separated frontend hostnames accepted by the siteverify gate
+  // (production: "renvikconsulting.com,www.renvikconsulting.com" - never
+  // localhost/127.0.0.1 in a production value; local dev: "localhost,127.0.0.1").
+  TURNSTILE_HOSTNAMES: string;
   RESEND_API_KEY: string;
   CONTACT_TO_EMAIL: string;
   CONTACT_FROM_EMAIL: string;
@@ -66,17 +70,45 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     return json({ ok: false, error: 'Verification failed. Please try again.' }, 400);
   }
 
-  const verifyRes = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({
+  // Canonical Turnstile siteverify gate: token shape, success, the stable
+  // `contact` action, and a deployment-specific frontend hostname allowlist.
+  // A submission failing any check is rejected before the email send below.
+  const expectedAction = 'contact';
+  const expectedHostnames = new Set(
+    (env.TURNSTILE_HOSTNAMES ?? '')
+      .split(',')
+      .map((hostname) => hostname.trim())
+      .filter(Boolean),
+  );
+
+  if (turnstileToken.length > 2048 || expectedHostnames.size === 0) {
+    return json({ ok: false, error: 'Verification failed. Please try again.' }, 403);
+  }
+
+  let verifyResult: { success: boolean; action?: string | null; hostname?: string | null };
+  try {
+    const verifyParams: Record<string, string> = {
       secret: env.TURNSTILE_SECRET_KEY,
       response: turnstileToken,
-      remoteip: request.headers.get('CF-Connecting-IP') ?? undefined,
-    }),
-  });
-  const verifyResult = await verifyRes.json<{ success: boolean }>();
-  if (!verifyResult.success) {
+    };
+    const connectingIp = request.headers.get('CF-Connecting-IP');
+    if (connectingIp) verifyParams.remoteip = connectingIp;
+    const verifyRes = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams(verifyParams),
+    });
+    if (!verifyRes.ok) throw new Error(`siteverify ${verifyRes.status}`);
+    verifyResult = await verifyRes.json();
+  } catch {
+    return json({ ok: false, error: 'Verification failed. Please try again.' }, 403);
+  }
+
+  if (
+    verifyResult.success !== true ||
+    verifyResult.action !== expectedAction ||
+    !expectedHostnames.has(verifyResult.hostname ?? '')
+  ) {
     return json({ ok: false, error: 'Verification failed. Please try again.' }, 403);
   }
 
