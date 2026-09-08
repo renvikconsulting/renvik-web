@@ -25,7 +25,7 @@ interface ContactPayload {
   turnstileToken?: unknown;
 }
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const EMAIL_RE = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
 const MAX_NAME_LEN = 200;
 const MAX_MESSAGE_LEN = 5000;
 
@@ -52,9 +52,22 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     return json({ ok: true });
   }
 
-  const name = typeof payload.name === 'string' ? payload.name.trim() : '';
-  const email = typeof payload.email === 'string' ? payload.email.trim() : '';
-  const message = typeof payload.message === 'string' ? payload.message.trim() : '';
+  // Sanitize before validation. The name and email are spliced into the
+  // outgoing email's Subject: line and the `From: ${name} <${email}>`
+  // header-style line, so C0 control characters (CRLF) and < > are stripped
+  // from them to block header injection; the message keeps \n (plain-text
+  // body) but loses the other control chars. The client mirrors this in
+  // contact.astro, but the server is the authority - direct API callers
+  // skip the browser.
+  const stripC0 = (value: string) => value.replace(/[\u0000-\u001f\u007f]/g, '');
+  const name = stripC0(typeof payload.name === 'string' ? payload.name : '')
+    .replace(/[<>]/g, '')
+    .trim();
+  const email = stripC0(typeof payload.email === 'string' ? payload.email : '').trim();
+  const message = (typeof payload.message === 'string' ? payload.message : '')
+    .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, '')
+    .replace(/\r/g, '')
+    .trim();
   const turnstileToken = typeof payload.turnstileToken === 'string' ? payload.turnstileToken : '';
 
   if (!name || name.length > MAX_NAME_LEN) {

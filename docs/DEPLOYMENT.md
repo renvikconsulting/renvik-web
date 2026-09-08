@@ -43,7 +43,9 @@ them, add them in the dashboard (Turnstile → widget → Edit → Domains).
    `PUBLIC_TURNSTILE_SITE_KEY=0x4AAAAAAEryb8oOvhAAP-GH`. This is a *build-time* variable baked into the
    static HTML by Astro (the site key is public by design), so a change needs a rebuild+redeploy (pushing
    to `main`, or re-running the Workers Build) to take effect. Local dev reads it from the gitignored
-   `.env` instead.
+   `.env` instead. For local end-to-end testing of the contact form (widget + `/api/contact`) use
+   `npm run preview:worker` (build + `wrangler dev` on http://localhost:8787) — plain `npm run dev`
+   (`astro dev`) does **not** serve the Function, so submissions 404 there.
 2. **Secret** → the Worker's **Settings** → **Variables and Secrets** → add `TURNSTILE_SECRET_KEY` as a
    **secret** (not a plain variable) — read at request time by the compiled `functions/api/contact.ts`
    logic, never shipped to the browser.

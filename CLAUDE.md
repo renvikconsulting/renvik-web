@@ -40,7 +40,10 @@ easy to get wrong from older Astro/Cloudflare tutorials). Full rebuild plan/hist
   Deploying below.
 - **Resend** for outbound email from the contact form, **Cloudflare Turnstile** for bot verification.
 
-Run locally: `npm install && npm run dev`. Build: `npm run build` — runs, in order, `astro check` (type
+Run locally: `npm install && npm run dev` (page development only — `astro dev` does **not** serve
+`/api/contact`, because `functions/` is only compiled into the Worker by the build; for contact-form
+end-to-end testing use `npm run preview:worker`, which builds and runs `wrangler dev` on
+http://localhost:8787). Build: `npm run build` — runs, in order, `astro check` (type
 check across `.astro` files and `functions/*.ts`), `astro build`, the CSP-hash patch script, then
 `wrangler pages functions build --outdir=./worker-build` (compiles `functions/api/contact.ts` into the
 Worker script `wrangler.jsonc`'s `main` points at — see Deploying). That last step's command is genuinely
@@ -113,10 +116,17 @@ route, not just Astro's own static preview): `npm run preview:worker` (runs the 
 
 `src/pages/contact.astro` posts JSON to `/api/contact` (`functions/api/contact.ts`). Defense layers, in
 order: a visually-hidden honeypot field (`website`) — any bot that fills it gets a fake success response —
-then basic field validation, then the canonical Cloudflare Turnstile siteverify gate (`success`, the
+then field validation + sanitization (the browser enforces `required`/`type=email`/`maxlength` natively,
+the server re-checks the same limits after stripping C0 control chars and `<`/`>` — a CRLF
+header-injection defense for the Subject:/From: lines of the outgoing email), then the canonical
+Cloudflare Turnstile siteverify gate (`success`, the
 `contact` action, and a hostname in the `TURNSTILE_HOSTNAMES` allowlist), then the email send via Resend.
 The frontend renders the widget explicitly (`api.js?render=explicit`, retained widget id, `reset` in
-`finally` after every submission attempt — tokens are single-use). Rate limiting on the endpoint is a
+`finally` after every submission attempt — tokens are single-use; the submit button starts disabled and is only re-enabled by the render
+`callback` once a token exists, and the submit handler re-checks the token for Enter-key implicit
+submission). Explicit rendering does **not**
+auto-add the `cf-turnstile-response` form input (implicit rendering does), so the token is captured via
+the render `callback` and sent from that variable, not from FormData. Rate limiting on the endpoint is a
 **Cloudflare dashboard rule**, not code — see `docs/DEPLOYMENT.md#rate-limiting`.
 
 Required secrets (Cloudflare dashboard → Workers & Pages → `renvik-web` → Settings → Variables and Secrets;

@@ -60,7 +60,13 @@ const phoneEncoded = Buffer.from(contactPhone).toString('base64');
 
       <div class="gradient-ring rounded-2xl">
         <div class="glass rounded-2xl p-6 sm:p-8">
-          <form id="contact-form" class="flex flex-col gap-5" novalidate>
+          <!--
+            Native constraint validation (required / type=email / maxlength)
+            blocks empty or malformed submissions before the JS handler runs;
+            the server re-validates the same rules (functions/api/contact.ts)
+            and the maxlengths below mirror its caps.
+          -->
+          <form id="contact-form" class="flex flex-col gap-5">
             <div class="flex flex-col gap-1.5">
               <label for="name" class="text-sm font-medium text-text">Name</label>
               <input
@@ -68,6 +74,7 @@ const phoneEncoded = Buffer.from(contactPhone).toString('base64');
                 name="name"
                 type="text"
                 required
+                maxlength="200"
                 autocomplete="name"
                 class="rounded-lg border border-border bg-bg px-3 py-2 text-text placeholder:text-text-muted/60 focus-visible:border-brand"
                 placeholder="Your name"
@@ -81,6 +88,7 @@ const phoneEncoded = Buffer.from(contactPhone).toString('base64');
                 name="email"
                 type="email"
                 required
+                maxlength="254"
                 autocomplete="email"
                 class="rounded-lg border border-border bg-bg px-3 py-2 text-text placeholder:text-text-muted/60 focus-visible:border-brand"
                 placeholder="you@company.com"
@@ -94,6 +102,7 @@ const phoneEncoded = Buffer.from(contactPhone).toString('base64');
                 name="message"
                 rows="5"
                 required
+                maxlength="5000"
                 class="rounded-lg border border-border bg-bg px-3 py-2 text-text placeholder:text-text-muted/60 focus-visible:border-brand"
                 placeholder="Tell us a bit about what you're working on"
               ></textarea>
@@ -162,6 +171,7 @@ const phoneEncoded = Buffer.from(contactPhone).toString('base64');
 <script>
   const form = document.getElementById('contact-form');
   const status = document.getElementById('form-status');
+  const submitButton = document.querySelector<HTMLButtonElement>('button[type="submit"]');
 
   // Turnstile (explicit render): the widget div above only exists when
   // PUBLIC_TURNSTILE_SITE_KEY was set at build time, so when it's missing
@@ -172,13 +182,40 @@ const phoneEncoded = Buffer.from(contactPhone).toString('base64');
   type TurnstileApi = {
     render: (
       container: HTMLElement,
-      options: { sitekey: string; action: string; theme?: 'light' | 'dark' | 'auto' },
+      options: {
+        sitekey: string;
+        action: string;
+        theme?: 'light' | 'dark' | 'auto';
+        callback?: (token: string) => void;
+        'error-callback'?: (errorCode: string) => void;
+      },
     ) => string;
     reset: (widgetId: string) => void;
   };
   const turnstileWindow = window as Window & { turnstile?: TurnstileApi };
   const turnstileContainer = document.getElementById('contact-turnstile');
   let contactWidgetId: string | undefined;
+  // Explicit rendering does NOT auto-add a cf-turnstile-response input to
+  // the form (that only happens with implicit rendering) - the token arrives
+  // exclusively via this callback, so the payload below reads it from here
+  // rather than from FormData.
+  let contactToken = '';
+
+  // Client-side mirror of the sanitization in functions/api/contact.ts (the
+  // server remains the authority): strip C0 control characters to block
+  // CRLF-based header injection into the outgoing email's Subject:/From:
+  // lines, and < > from the name, which is spliced into the
+  // `From: ${name} <${email}>` line. Newlines are kept in the message body.
+  const sanitizeName = (value: string) => value.replace(/[\u0000-\u001f\u007f<>]/g, '').trim();
+  const sanitizeEmail = (value: string) => value.replace(/[\u0000-\u001f\u007f]/g, '').trim();
+  const sanitizeMessage = (value: string) =>
+    value.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f\r]/g, '').trim();
+
+  // With a Turnstile widget, the submit button starts disabled and the
+  // callback below re-enables it once the challenge produces a token;
+  // without a widget (site key not set at build time) it stays enabled so
+  // the page remains testable.
+  if (turnstileContainer && submitButton) submitButton.disabled = true;
 
   const renderContactTurnstile = () => {
     if (!turnstileWindow.turnstile || !turnstileContainer) return;
@@ -186,6 +223,17 @@ const phoneEncoded = Buffer.from(contactPhone).toString('base64');
       sitekey: turnstileContainer.dataset.sitekey!,
       action: 'contact',
       theme: 'auto',
+      callback: (token) => {
+        contactToken = token;
+        if (submitButton) submitButton.disabled = false;
+      },
+      'error-callback': (errorCode) => {
+        // The widget failed (e.g. this hostname isn't registered for the
+        // widget) - a submission can't be verified, so keep the button
+        // disabled; the mailto link above is still there.
+        console.warn('Turnstile failed to load:', errorCode);
+        if (submitButton) submitButton.disabled = true;
+      },
     });
   };
 
@@ -205,17 +253,24 @@ const phoneEncoded = Buffer.from(contactPhone).toString('base64');
     event.preventDefault();
     if (!(form instanceof HTMLFormElement) || !status) return;
 
-    const submitButton = form.querySelector('button[type="submit"]');
+    // Belt and braces: Enter-key (implicit) submission can fire even while
+    // the button is disabled, so re-check the token before doing anything.
+    if (turnstileContainer && !contactToken) {
+      status.textContent = 'Please complete the verification first.';
+      status.className = 'text-sm text-red-500';
+      return;
+    }
+
     const formData = new FormData(form);
     const payload = {
-      name: formData.get('name'),
-      email: formData.get('email'),
-      message: formData.get('message'),
-      website: formData.get('website'), // honeypot
-      turnstileToken: formData.get('cf-turnstile-response'),
+      name: sanitizeName(String(formData.get('name') ?? '')),
+      email: sanitizeEmail(String(formData.get('email') ?? '')),
+      message: sanitizeMessage(String(formData.get('message') ?? '')),
+      website: String(formData.get('website') ?? ''), // honeypot
+      turnstileToken: contactToken,
     };
 
-    if (submitButton instanceof HTMLButtonElement) submitButton.disabled = true;
+    if (submitButton) submitButton.disabled = true;
     status.textContent = 'Sending…';
     status.className = 'text-sm text-text-muted';
 
@@ -235,8 +290,12 @@ const phoneEncoded = Buffer.from(contactPhone).toString('base64');
       status.textContent = 'Something went wrong sending your message. Please try emailing us directly.';
       status.className = 'text-sm text-red-500';
     } finally {
-      if (submitButton instanceof HTMLButtonElement) submitButton.disabled = false;
       if (contactWidgetId !== undefined) turnstileWindow.turnstile?.reset(contactWidgetId);
+      // The token was just consumed (or will be on the next attempt) - clear
+      // it so a too-early resubmit can't send a redeemed token, and keep the
+      // button disabled until the widget produces a fresh one.
+      contactToken = '';
+      if (turnstileContainer && submitButton) submitButton.disabled = true;
     }
   });
 </script>
