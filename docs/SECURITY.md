@@ -56,8 +56,9 @@ Consequences worth knowing:
    allowlist — so a token minted on any other origin (e.g. a phishing page embedding the same widget) is
    rejected.
 3. **Field validation + sanitization** — server-side (never trust client validation). The browser
-   enforces `required`/`type=email`/`maxlength` natively (no `novalidate` on the form), and the Function
-   re-checks the same limits *after* sanitizing: C0 control characters are stripped from
+   enforces `required`/`type=email` (with a `pattern` mirroring the strict email shape — the
+   browser's bare email check accepts a missing TLD dot)/`maxlength` natively (no `novalidate` on the
+   form), and the Function re-checks the same limits *after* sanitizing: C0 control characters are stripped from
    name/email/message and `<`/`>` from the name (the name is spliced into the email's
    `From: ${name} <${email}>` line, so a CRLF in it would be header injection), and the email must
    match a strict ASCII shape. User input is never rendered as HTML anywhere — it only reaches the
