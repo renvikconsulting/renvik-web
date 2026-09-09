@@ -51,6 +51,20 @@ if (!headers.includes(PLACEHOLDER)) {
   process.exit(1);
 }
 
+// The placeholder must stand alone as a whitespace-delimited token. If it's
+// glued to surrounding text (e.g. a stray quote: '%%INLINE_SCRIPT_HASHES%%),
+// the first generated hash fuses with that text into a malformed CSP source
+// expression (e.g. ''sha256-...='), which browsers silently drop - silently
+// blocking exactly one inline script with no build-time error.
+const placeholderToken = headers.match(/\S*%%INLINE_SCRIPT_HASHES%%\S*/);
+if (placeholderToken && placeholderToken[0] !== PLACEHOLDER) {
+  console.error(
+    `[generate-csp-hashes] ${PLACEHOLDER} is not a standalone whitespace-delimited token (found ${JSON.stringify(placeholderToken[0])}). ` +
+      'In public/_headers keep it surrounded by spaces and unquoted - the generated entries are quoted individually.'
+  );
+  process.exit(1);
+}
+
 const allowlist = [...hashes].sort().map((h) => `'${h}'`).join(' ');
 writeFileSync(HEADERS_PATH, headers.replace(PLACEHOLDER, allowlist));
 console.log(`[generate-csp-hashes] Patched dist/_headers with ${hashes.size} inline script hash(es).`);

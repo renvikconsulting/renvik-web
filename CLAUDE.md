@@ -120,15 +120,20 @@ then field validation + sanitization (the browser enforces `required`/`type=emai
 mirroring the server's email regex)/`maxlength` natively and the email field shows an inline error
 while its value is non-empty and invalid; the server re-checks the same limits after
 stripping C0 control chars and `<`/`>` — a CRLF
-header-injection defense for the Subject:/From: lines of the outgoing email), then the canonical
-Cloudflare Turnstile siteverify gate (`success`, the
-`contact` action, and a hostname in the `TURNSTILE_HOSTNAMES` allowlist), then the email send via Resend.
+header-injection defense for the Subject:/From: lines of the outgoing email), then the Cloudflare
+Turnstile siteverify gate — a *soft* gate: applied only when the client actually sent a token, and
+strict there (`success`, the `contact` action, a hostname in the `TURNSTILE_HOSTNAMES` allowlist;
+any failure rejects) — while a MISSING token (client blocked/failed the widget, or the site key
+wasn't baked in at build time) skips verification and sends, so the form keeps working where
+Turnstile can't — then the email send via Resend.
 The frontend renders the widget explicitly (`api.js?render=explicit`, retained widget id, `reset` in
 `finally` after every submission attempt — tokens are single-use. The submit button is enabled purely
 on field validity — deliberately NOT on tick state, because `before-callback` doesn't reliably fire at
 tick time and gating on it left the button locked for the whole verification. A Send click before or
 while the challenge runs instead waits for the token (up to 15s, with a "tick the checkbox" hint in
-the status) and then proceeds with the submission. Explicit rendering does **not**
+the status) and then proceeds with the submission; if the widget is unavailable (api.js blocked —
+`error` listener — or the widget `error-callback` fired, setting `turnstileUnavailable`), that wait
+is skipped and the submission goes through without a token. Explicit rendering does **not**
 auto-add the `cf-turnstile-response` form input (implicit rendering does), so the token is captured via
 the render `callback` and sent from that variable, not from FormData. Rate limiting on the endpoint is a
 **Cloudflare dashboard rule**, not code — see `docs/DEPLOYMENT.md#rate-limiting`.
@@ -140,8 +145,9 @@ and `TURNSTILE_HOSTNAMES` (comma-separated frontend hostnames the siteverify gat
 `renvikconsulting.com,www.renvikconsulting.com`; local dev gets these from the gitignored `.env`). The
 Turnstile **site** key is public and is injected at build time as `PUBLIC_TURNSTILE_SITE_KEY`
 (`0x4AAAAAAEryb8oOvhAAP-GH`). Without it set, the page still renders and the form still POSTs — the
-Turnstile widget and its token are simply omitted, and the Function will reject the submission for a
-missing token. Don't treat that as a bug when testing locally without the key.
+Turnstile widget and its token are simply omitted, and the Function skips verification for the
+missing token and sends (Turnstile is a soft gate; the honeypot and the Cloudflare edge rate-limit
+rule are the spam backstop for those unverified submissions — see `docs/SECURITY.md`).
 
 ## Content honesty — read before adding "proof" content
 

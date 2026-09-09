@@ -86,11 +86,12 @@ const phoneEncoded = Buffer.from(contactPhone).toString('base64');
               <!--
                 type="email" alone is the browser's lax check (it accepts
                 user@domain with no TLD dot); pattern mirrors the server's
-                EMAIL_RE in functions/api/contact.ts so a missing dot after
-                the @ is flagged before submit. The #email-error line below
-                is driven by the same validity check while typing (see
-                updateEmailError in the script) and stays visible until the
-                value is fixed.
+                EMAIL_RE in functions/api/contact.ts (dot-separated domain
+                labels + a 2+ letter TLD), so a missing dot after the @ - or
+                a malformed label - is flagged before submit. The
+                #email-error line below is driven by the same validity check
+                while typing (see updateEmailError in the script) and stays
+                visible until the value is fixed.
               -->
               <input
                 id="email"
@@ -98,7 +99,7 @@ const phoneEncoded = Buffer.from(contactPhone).toString('base64');
                 type="email"
                 required
                 maxlength="254"
-                pattern="[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}"
+                pattern="[A-Za-z0-9._%+-]+@(?:[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?\.)+[A-Za-z]{2,}"
                 autocomplete="email"
                 class="rounded-lg border border-border bg-bg px-3 py-2 text-text placeholder:text-text-muted/60 focus-visible:border-brand"
                 placeholder="you@company.com"
@@ -189,7 +190,11 @@ const phoneEncoded = Buffer.from(contactPhone).toString('base64');
   // this is a no-op and the api.js script is never requested. Tokens are
   // single-use: after every same-page submission attempt the widget is
   // reset (with the retained widget id) so a retry gets a fresh token -
-  // resubmitting a redeemed token would always fail siteverify.
+  // resubmitting a redeemed token would always fail siteverify. If the
+  // script or widget can't run on this client (blocked, errored),
+  // turnstileUnavailable below is set and the submission goes through
+  // WITHOUT a token - the Function skips siteverify for missing tokens,
+  // so the form keeps working where Turnstile can't (see docs/SECURITY.md).
   type TurnstileApi = {
     render: (
       container: HTMLElement,
@@ -223,6 +228,13 @@ const phoneEncoded = Buffer.from(contactPhone).toString('base64');
   // that lands while verification is in flight can continue instead of
   // bouncing the user.
   let tokenWaiter: (() => void) | null = null;
+  // Set when the Turnstile script fails to load (ad blocker, strict CSP, or
+  // regional/network block on challenges.cloudflare.com) or the widget
+  // reports an error: the client can't produce a token, so a submission
+  // proceeds WITHOUT one instead of waiting for a token that can't come.
+  // The Function skips siteverify for a missing token (the honeypot and the
+  // Cloudflare edge rate-limit rule remain the spam backstop).
+  let turnstileUnavailable = false;
 
   // The submit button unlocks exactly when every field passes the browser's
   // constraint validation (required / type=email / pattern / maxlength),
@@ -230,8 +242,10 @@ const phoneEncoded = Buffer.from(contactPhone).toString('base64');
   // state: in practice Turnstile's before-callback doesn't reliably fire at
   // the moment the box is ticked, so waiting for it kept the button locked
   // for the whole verification. The token is still enforced in the submit
-  // handler (and server-side): a Send click before/while the challenge runs
-  // waits for the token and then proceeds.
+  // handler (and server-side) whenever the widget can run: a Send click
+  // before/while the challenge runs waits for the token and then proceeds.
+  // Only when the client can't run the widget at all does a submission go
+  // through without a token.
   const updateSubmitButton = () => {
     if (submitting || !submitButton || !(form instanceof HTMLFormElement)) return;
     submitButton.disabled = !form.checkValidity();
@@ -303,9 +317,11 @@ const phoneEncoded = Buffer.from(contactPhone).toString('base64');
       },
       'error-callback': (errorCode) => {
         // The widget failed (e.g. this hostname isn't registered for the
-        // widget) - a submission can't be verified, so a submit attempt will
-        // time out with an error; the mailto link above is still there.
+        // widget) - verification is impossible from this client, so a submit
+        // attempt proceeds without a token (the server skips siteverify)
+        // instead of timing out with an error.
         console.warn('Turnstile failed to load:', errorCode);
+        turnstileUnavailable = true;
         contactToken = '';
         if (tokenWaiter) {
           const waiter = tokenWaiter;
@@ -325,6 +341,23 @@ const phoneEncoded = Buffer.from(contactPhone).toString('base64');
       script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
       script.async = true;
       script.addEventListener('load', renderContactTurnstile, { once: true });
+      // Blocked or unreachable (ad blocker, strict CSP, regional block):
+      // the widget can never render, so mark Turnstile unavailable and let
+      // submissions proceed without a token.
+      script.addEventListener(
+        'error',
+        () => {
+          console.warn('Turnstile script failed to load');
+          turnstileUnavailable = true;
+          if (tokenWaiter) {
+            const waiter = tokenWaiter;
+            tokenWaiter = null;
+            waiter();
+          }
+          updateSubmitButton();
+        },
+        { once: true },
+      );
       document.head.appendChild(script);
     }
   }
@@ -341,7 +374,7 @@ const phoneEncoded = Buffer.from(contactPhone).toString('base64');
     // and continue - the status text guides a user who hasn't ticked yet,
     // and ticking the box while we wait completes this wait and sends the
     // form without a second click.
-    if (turnstileContainer && !contactToken) {
+    if (turnstileContainer && !contactToken && !turnstileUnavailable) {
       submitting = true;
       if (submitButton) submitButton.disabled = true;
       status.textContent =
@@ -360,16 +393,26 @@ const phoneEncoded = Buffer.from(contactPhone).toString('base64');
         setTimeout(() => settle('timeout'), 15000);
       });
       if (outcome === 'timeout' || !contactToken) {
-        // No usable token - reset the challenge for a fresh tick.
-        submitting = false;
-        contactToken = '';
-        if (contactWidgetId !== undefined) turnstileWindow.turnstile?.reset(contactWidgetId);
-        updateSubmitButton();
-        status.textContent = 'Verification did not complete - please tick the checkbox and try again.';
-        status.className = 'text-sm text-red-500';
-        return;
+        if (turnstileUnavailable || !turnstileWindow.turnstile) {
+          // Turnstile became unavailable while we waited (widget error, or
+          // the api.js load hung without firing load/error) - the challenge
+          // can never complete on this client, so send without a token; the
+          // server skips verification when the token is missing.
+          // (fall through to the POST below)
+        } else {
+          // No usable token and the widget is working - reset the challenge
+          // for a fresh tick.
+          submitting = false;
+          contactToken = '';
+          if (contactWidgetId !== undefined) turnstileWindow.turnstile?.reset(contactWidgetId);
+          updateSubmitButton();
+          status.textContent = 'Verification did not complete - please tick the checkbox and try again.';
+          status.className = 'text-sm text-red-500';
+          return;
+        }
       }
-      // Token arrived while we waited - fall through and submit with it.
+      // Token arrived while we waited (or we're degrading to an unverified
+      // send) - fall through and submit.
     }
 
     const formData = new FormData(form);

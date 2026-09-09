@@ -50,18 +50,27 @@ Consequences worth knowing:
 1. **Honeypot** — a visually-hidden `website` field (hidden via `clip`/1px sizing, not `display:none`, since
    some bots specifically skip `display:none` fields when filling forms). Any non-empty value is treated as
    spam; the Function returns a fake success so the bot doesn't learn the field is a trap.
-2. **Turnstile** — the token from Cloudflare's Turnstile widget is verified server-side against
-   `https://challenges.cloudflare.com/turnstile/v0/siteverify` before anything is sent. The endpoint
-   requires `success`, the stable `contact` action, and a hostname inside the `TURNSTILE_HOSTNAMES`
-   allowlist — so a token minted on any other origin (e.g. a phishing page embedding the same widget) is
-   rejected.
+2. **Turnstile (soft gate)** — when a submission carries a token (the widget ran), it's verified
+   server-side against `https://challenges.cloudflare.com/turnstile/v0/siteverify` before anything is
+   sent. The endpoint requires `success`, the stable `contact` action, and a hostname inside the
+   `TURNSTILE_HOSTNAMES` allowlist — so a token minted on any other origin (e.g. a phishing page
+   embedding the same widget) is rejected, and a forged or replayed token fails siteverify. When a
+   submission arrives with NO token — the client couldn't run the widget (ad blocker / strict CSP /
+   regional block on `challenges.cloudflare.com`, widget error, or the site key wasn't baked in at
+   build time) — verification is skipped and the message is sent anyway: the form must keep working
+   for visitors whose clients block Turnstile, and for those unverified submissions the honeypot
+   (item 1) plus the Cloudflare edge rate-limit rule are the operative spam defenses. That
+   availability-over-verification tradeoff is deliberate — don't "fix" it by re-adding a hard token
+   requirement.
 3. **Field validation + sanitization** — server-side (never trust client validation). The browser
    enforces `required`/`type=email` (with a `pattern` mirroring the strict email shape — the
    browser's bare email check accepts a missing TLD dot)/`maxlength` natively (no `novalidate` on the
    form), and the Function re-checks the same limits *after* sanitizing: C0 control characters are stripped from
    name/email/message and `<`/`>` from the name (the name is spliced into the email's
    `From: ${name} <${email}>` line, so a CRLF in it would be header injection), and the email must
-   match a strict ASCII shape. User input is never rendered as HTML anywhere — it only reaches the
+   match a strict ASCII shape: ASCII local part, dot-separated domain labels
+    (each starting/ending alnum), and a 2+ letter TLD, so `user@domain`, `user@.com`, and
+    `user@-dom-.com` are all rejected. User input is never rendered as HTML anywhere — it only reaches the
    plain-text email body.
 
 ### AI-crawler blocking backstop (`public/robots.txt`)

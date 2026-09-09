@@ -51,8 +51,10 @@ them, add them in the dashboard (Turnstile → widget → Edit → Domains).
    logic, never shipped to the browser.
 3. **Hostname allowlist** → same screen → add a plain variable
    `TURNSTILE_HOSTNAMES=renvikconsulting.com,www.renvikconsulting.com`. The contact endpoint rejects any
-   submission whose siteverify hostname isn't in this list, so a production value must never include
-   `localhost` or `127.0.0.1`.
+   submission *with a token* whose siteverify hostname isn't in this list, so a production value must
+   never include `localhost` or `127.0.0.1`. Submissions with no token at all (the client blocked the
+   widget) are sent unverified — Turnstile is a soft gate; see
+   `docs/SECURITY.md#contact-form-spam-defense`.
 4. **Verify the CSP doesn't silently break the widget**: `public/_headers`' `connect-src` is `'self'` only.
    Turnstile's widget runs inside a cross-origin iframe with its own CSP context, so this should be fine —
    but confirm it for real: after the site key is live, open `/contact` with devtools open, solve the

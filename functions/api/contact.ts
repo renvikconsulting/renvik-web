@@ -2,7 +2,8 @@
 //
 // This is the site's only dynamic endpoint; everything else is static.
 // Flow: honeypot check -> field validation -> Turnstile server-side
-// verification -> send via Resend. Required secrets/vars (set in the
+// verification (only when a token was sent - see below) -> send via Resend.
+// Required secrets/vars (set in the
 // Cloudflare dashboard, never committed) are documented in
 // docs/DEPLOYMENT.md#contact-form-secrets.
 
@@ -25,7 +26,12 @@ interface ContactPayload {
   turnstileToken?: unknown;
 }
 
-const EMAIL_RE = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+// Strict email shape: ASCII local part, @, one or more dot-separated domain
+// labels (each must start and end alnum - no empty or hyphen-edge labels, so
+// "user@.com" / "user@-dom-.com" are rejected), then a 2+ letter TLD (so
+// "user@domain" with no dot/TLD is rejected). Mirrored by the client's
+// pattern attribute in src/pages/contact.astro - keep the two in sync.
+const EMAIL_RE = /^[A-Za-z0-9._%+-]+@(?:[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?\.)+[A-Za-z]{2,}$/;
 const MAX_NAME_LEN = 200;
 const MAX_MESSAGE_LEN = 5000;
 
@@ -79,50 +85,58 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   if (!message || message.length > MAX_MESSAGE_LEN) {
     return json({ ok: false, error: 'Please provide a message.' }, 400);
   }
-  if (!turnstileToken) {
-    return json({ ok: false, error: 'Verification failed. Please try again.' }, 400);
-  }
+  // Turnstile is a *soft* gate. A token that IS present gets the full
+  // siteverify gate below, and failing it rejects the submission - a
+  // present-but-failed token means bot or tampering, so that stays strict.
+  // A MISSING token means the client couldn't run the widget (ad blocker /
+  // strict CSP / regional block on challenges.cloudflare.com, widget error,
+  // or the site key wasn't baked in at build time): verification is skipped
+  // and the submission proceeds, because the form must keep working for
+  // visitors whose clients block Turnstile. For those, the honeypot above
+  // and the Cloudflare edge rate-limit rule are the spam backstop - see
+  // docs/SECURITY.md#contact-form-spam-defense.
+  if (turnstileToken) {
+    // Canonical Turnstile siteverify gate: token shape, success, the stable
+    // `contact` action, and a deployment-specific frontend hostname allowlist.
+    // A submission failing any check is rejected before the email send below.
+    const expectedAction = 'contact';
+    const expectedHostnames = new Set(
+      (env.TURNSTILE_HOSTNAMES ?? '')
+        .split(',')
+        .map((hostname) => hostname.trim())
+        .filter(Boolean),
+    );
 
-  // Canonical Turnstile siteverify gate: token shape, success, the stable
-  // `contact` action, and a deployment-specific frontend hostname allowlist.
-  // A submission failing any check is rejected before the email send below.
-  const expectedAction = 'contact';
-  const expectedHostnames = new Set(
-    (env.TURNSTILE_HOSTNAMES ?? '')
-      .split(',')
-      .map((hostname) => hostname.trim())
-      .filter(Boolean),
-  );
+    if (turnstileToken.length > 2048 || expectedHostnames.size === 0) {
+      return json({ ok: false, error: 'Verification failed. Please try again.' }, 403);
+    }
 
-  if (turnstileToken.length > 2048 || expectedHostnames.size === 0) {
-    return json({ ok: false, error: 'Verification failed. Please try again.' }, 403);
-  }
+    let verifyResult: { success: boolean; action?: string | null; hostname?: string | null };
+    try {
+      const verifyParams: Record<string, string> = {
+        secret: env.TURNSTILE_SECRET_KEY,
+        response: turnstileToken,
+      };
+      const connectingIp = request.headers.get('CF-Connecting-IP');
+      if (connectingIp) verifyParams.remoteip = connectingIp;
+      const verifyRes = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+        method: 'POST',
+        headers: { 'content-type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams(verifyParams),
+      });
+      if (!verifyRes.ok) throw new Error(`siteverify ${verifyRes.status}`);
+      verifyResult = await verifyRes.json();
+    } catch {
+      return json({ ok: false, error: 'Verification failed. Please try again.' }, 403);
+    }
 
-  let verifyResult: { success: boolean; action?: string | null; hostname?: string | null };
-  try {
-    const verifyParams: Record<string, string> = {
-      secret: env.TURNSTILE_SECRET_KEY,
-      response: turnstileToken,
-    };
-    const connectingIp = request.headers.get('CF-Connecting-IP');
-    if (connectingIp) verifyParams.remoteip = connectingIp;
-    const verifyRes = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
-      method: 'POST',
-      headers: { 'content-type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams(verifyParams),
-    });
-    if (!verifyRes.ok) throw new Error(`siteverify ${verifyRes.status}`);
-    verifyResult = await verifyRes.json();
-  } catch {
-    return json({ ok: false, error: 'Verification failed. Please try again.' }, 403);
-  }
-
-  if (
-    verifyResult.success !== true ||
-    verifyResult.action !== expectedAction ||
-    !expectedHostnames.has(verifyResult.hostname ?? '')
-  ) {
-    return json({ ok: false, error: 'Verification failed. Please try again.' }, 403);
+    if (
+      verifyResult.success !== true ||
+      verifyResult.action !== expectedAction ||
+      !expectedHostnames.has(verifyResult.hostname ?? '')
+    ) {
+      return json({ ok: false, error: 'Verification failed. Please try again.' }, 403);
+    }
   }
 
   const emailRes = await fetch('https://api.resend.com/emails', {
