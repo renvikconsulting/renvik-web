@@ -83,16 +83,27 @@ const phoneEncoded = Buffer.from(contactPhone).toString('base64');
 
             <div class="flex flex-col gap-1.5">
               <label for="email" class="text-sm font-medium text-text">Email</label>
+              <!--
+                type="email" alone is the browser's lax check (it accepts
+                user@domain with no TLD dot); pattern mirrors the server's
+                EMAIL_RE in functions/api/contact.ts so a missing dot after
+                the @ is flagged before submit. The #email-error line below
+                is driven by the same validity check while typing (see
+                updateEmailError in the script) and stays visible until the
+                value is fixed.
+              -->
               <input
                 id="email"
                 name="email"
                 type="email"
                 required
                 maxlength="254"
+                pattern="[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}"
                 autocomplete="email"
                 class="rounded-lg border border-border bg-bg px-3 py-2 text-text placeholder:text-text-muted/60 focus-visible:border-brand"
                 placeholder="you@company.com"
               />
+              <p id="email-error" class="text-xs text-red-500" aria-live="polite" hidden></p>
             </div>
 
             <div class="flex flex-col gap-1.5">
@@ -186,8 +197,13 @@ const phoneEncoded = Buffer.from(contactPhone).toString('base64');
         sitekey: string;
         action: string;
         theme?: 'light' | 'dark' | 'auto';
+        // Fires the moment the user ticks the checkbox, before the challenge
+        // has been verified - unlocks the button without waiting for the token.
+        'before-callback'?: () => void;
         callback?: (token: string) => void;
         'error-callback'?: (errorCode: string) => void;
+        // Fires when a generated token expires before it's used.
+        'expire-callback'?: () => void;
       },
     ) => string;
     reset: (widgetId: string) => void;
@@ -200,6 +216,43 @@ const phoneEncoded = Buffer.from(contactPhone).toString('base64');
   // exclusively via this callback, so the payload below reads it from here
   // rather than from FormData.
   let contactToken = '';
+  // Guards the button while a submission request is in flight so keystrokes
+  // can't re-enable it mid-flight.
+  let submitting = false;
+  // Woken by the token callback (or a challenge error/expire) so a submit
+  // that lands while verification is in flight can continue instead of
+  // bouncing the user.
+  let tokenWaiter: (() => void) | null = null;
+
+  // The submit button unlocks exactly when every field passes the browser's
+  // constraint validation (required / type=email / pattern / maxlength),
+  // re-evaluated on every keystroke. Deliberately NOT gated on the challenge
+  // state: in practice Turnstile's before-callback doesn't reliably fire at
+  // the moment the box is ticked, so waiting for it kept the button locked
+  // for the whole verification. The token is still enforced in the submit
+  // handler (and server-side): a Send click before/while the challenge runs
+  // waits for the token and then proceeds.
+  const updateSubmitButton = () => {
+    if (submitting || !submitButton || !(form instanceof HTMLFormElement)) return;
+    submitButton.disabled = !form.checkValidity();
+  };
+
+  const emailInput = document.getElementById('email') as HTMLInputElement | null;
+  const emailError = document.getElementById('email-error') as HTMLParagraphElement | null;
+
+  // Inline email feedback: while the field holds text that isn't a valid
+  // email, the message under the input stays visible; the moment the value
+  // becomes valid (or is emptied) it disappears. An empty field is left to
+  // the required check on submit - nagging about emptiness before the user
+  // has started typing isn't useful.
+  const updateEmailError = () => {
+    if (!emailInput || !emailError) return;
+    const invalid = emailInput.value !== '' && !emailInput.checkValidity();
+    emailError.textContent = invalid
+      ? emailInput.validationMessage || 'Please enter a valid email address.'
+      : '';
+    emailError.hidden = !invalid;
+  };
 
   // Client-side mirror of the sanitization in functions/api/contact.ts (the
   // server remains the authority): strip C0 control characters to block
@@ -211,11 +264,17 @@ const phoneEncoded = Buffer.from(contactPhone).toString('base64');
   const sanitizeMessage = (value: string) =>
     value.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f\r]/g, '').trim();
 
-  // With a Turnstile widget, the submit button starts disabled and the
-  // callback below re-enables it once the challenge produces a token;
-  // without a widget (site key not set at build time) it stays enabled so
-  // the page remains testable.
-  if (turnstileContainer && submitButton) submitButton.disabled = true;
+  // The button and the inline email error start from their computed state,
+  // and the 'input' listener keeps both in step with the fields as they
+  // change: the button unlocks the moment the fields validate (AND, with a
+  // widget, the challenge is ticked); the email error shows while the value
+  // is non-empty and invalid, and clears the moment it's fixed.
+  updateSubmitButton();
+  updateEmailError();
+  form?.addEventListener('input', () => {
+    updateSubmitButton();
+    updateEmailError();
+  });
 
   const renderContactTurnstile = () => {
     if (!turnstileWindow.turnstile || !turnstileContainer) return;
@@ -225,14 +284,35 @@ const phoneEncoded = Buffer.from(contactPhone).toString('base64');
       theme: 'auto',
       callback: (token) => {
         contactToken = token;
-        if (submitButton) submitButton.disabled = false;
+        if (tokenWaiter) {
+          const waiter = tokenWaiter;
+          tokenWaiter = null;
+          waiter();
+        }
+        updateSubmitButton();
+      },
+      'expire-callback': () => {
+        // A generated token lapsed before use - force a fresh tick.
+        contactToken = '';
+        if (tokenWaiter) {
+          const waiter = tokenWaiter;
+          tokenWaiter = null;
+          waiter();
+        }
+        updateSubmitButton();
       },
       'error-callback': (errorCode) => {
         // The widget failed (e.g. this hostname isn't registered for the
-        // widget) - a submission can't be verified, so keep the button
-        // disabled; the mailto link above is still there.
+        // widget) - a submission can't be verified, so a submit attempt will
+        // time out with an error; the mailto link above is still there.
         console.warn('Turnstile failed to load:', errorCode);
-        if (submitButton) submitButton.disabled = true;
+        contactToken = '';
+        if (tokenWaiter) {
+          const waiter = tokenWaiter;
+          tokenWaiter = null;
+          waiter();
+        }
+        updateSubmitButton();
       },
     });
   };
@@ -252,13 +332,44 @@ const phoneEncoded = Buffer.from(contactPhone).toString('base64');
   form?.addEventListener('submit', async (event) => {
     event.preventDefault();
     if (!(form instanceof HTMLFormElement) || !status) return;
+    // A submission (or its verification wait) is already in flight.
+    if (submitting) return;
 
-    // Belt and braces: Enter-key (implicit) submission can fire even while
-    // the button is disabled, so re-check the token before doing anything.
+    // No token yet: either the checkbox hasn't been ticked, or it was just
+    // ticked and verification is in flight (Turnstile's callbacks can't
+    // tell us which). Instead of rejecting the click, wait for the token
+    // and continue - the status text guides a user who hasn't ticked yet,
+    // and ticking the box while we wait completes this wait and sends the
+    // form without a second click.
     if (turnstileContainer && !contactToken) {
-      status.textContent = 'Please complete the verification first.';
-      status.className = 'text-sm text-red-500';
-      return;
+      submitting = true;
+      if (submitButton) submitButton.disabled = true;
+      status.textContent =
+        "Verifying… please tick the Turnstile checkbox if it isn't ticked yet.";
+      status.className = 'text-sm text-text-muted';
+      const outcome = await new Promise<'token' | 'timeout'>((resolve) => {
+        let settled = false;
+        const settle = (result: 'token' | 'timeout') => {
+          if (settled) return;
+          settled = true;
+          if (tokenWaiter === waiter) tokenWaiter = null;
+          resolve(result);
+        };
+        const waiter = () => settle('token');
+        tokenWaiter = waiter;
+        setTimeout(() => settle('timeout'), 15000);
+      });
+      if (outcome === 'timeout' || !contactToken) {
+        // No usable token - reset the challenge for a fresh tick.
+        submitting = false;
+        contactToken = '';
+        if (contactWidgetId !== undefined) turnstileWindow.turnstile?.reset(contactWidgetId);
+        updateSubmitButton();
+        status.textContent = 'Verification did not complete - please tick the checkbox and try again.';
+        status.className = 'text-sm text-red-500';
+        return;
+      }
+      // Token arrived while we waited - fall through and submit with it.
     }
 
     const formData = new FormData(form);
@@ -270,6 +381,7 @@ const phoneEncoded = Buffer.from(contactPhone).toString('base64');
       turnstileToken: contactToken,
     };
 
+    submitting = true;
     if (submitButton) submitButton.disabled = true;
     status.textContent = 'Sending…';
     status.className = 'text-sm text-text-muted';
@@ -281,21 +393,37 @@ const phoneEncoded = Buffer.from(contactPhone).toString('base64');
         body: JSON.stringify(payload),
       });
 
-      if (!res.ok) throw new Error('Request failed');
+      if (!res.ok) {
+        // Surface the server's specific error (e.g. "Please provide a valid
+        // email address.") when the response has one; fall back to the
+        // generic message for non-JSON/unknown failures.
+        let detail = '';
+        try {
+          const body = (await res.json()) as { error?: string };
+          if (body && typeof body.error === 'string') detail = body.error;
+        } catch {
+          // non-JSON error body - keep the generic message
+        }
+        throw new Error(detail);
+      }
 
       status.textContent = "Thanks - we'll be in touch shortly.";
       status.className = 'text-sm text-emerald-500';
       form.reset();
     } catch (err) {
-      status.textContent = 'Something went wrong sending your message. Please try emailing us directly.';
+      const detail = err instanceof Error && err.message ? err.message : '';
+      status.textContent =
+        detail || 'Something went wrong sending your message. Please try emailing us directly.';
       status.className = 'text-sm text-red-500';
     } finally {
       if (contactWidgetId !== undefined) turnstileWindow.turnstile?.reset(contactWidgetId);
       // The token was just consumed (or will be on the next attempt) - clear
-      // it so a too-early resubmit can't send a redeemed token, and keep the
-      // button disabled until the widget produces a fresh one.
+      // it so a too-early resubmit can't send a redeemed token. The widget
+      // reset above re-arms a fresh challenge; the next Send will wait for
+      // the new tick's token.
+      submitting = false;
       contactToken = '';
-      if (turnstileContainer && submitButton) submitButton.disabled = true;
+      updateSubmitButton();
     }
   });
 </script>

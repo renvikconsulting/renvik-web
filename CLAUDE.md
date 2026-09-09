@@ -116,15 +116,19 @@ route, not just Astro's own static preview): `npm run preview:worker` (runs the 
 
 `src/pages/contact.astro` posts JSON to `/api/contact` (`functions/api/contact.ts`). Defense layers, in
 order: a visually-hidden honeypot field (`website`) — any bot that fills it gets a fake success response —
-then field validation + sanitization (the browser enforces `required`/`type=email`/`maxlength` natively,
-the server re-checks the same limits after stripping C0 control chars and `<`/`>` — a CRLF
+then field validation + sanitization (the browser enforces `required`/`type=email` (with a `pattern`
+mirroring the server's email regex)/`maxlength` natively and the email field shows an inline error
+while its value is non-empty and invalid; the server re-checks the same limits after
+stripping C0 control chars and `<`/`>` — a CRLF
 header-injection defense for the Subject:/From: lines of the outgoing email), then the canonical
 Cloudflare Turnstile siteverify gate (`success`, the
 `contact` action, and a hostname in the `TURNSTILE_HOSTNAMES` allowlist), then the email send via Resend.
 The frontend renders the widget explicitly (`api.js?render=explicit`, retained widget id, `reset` in
-`finally` after every submission attempt — tokens are single-use; the submit button starts disabled and is only re-enabled by the render
-`callback` once a token exists, and the submit handler re-checks the token for Enter-key implicit
-submission). Explicit rendering does **not**
+`finally` after every submission attempt — tokens are single-use. The submit button is enabled purely
+on field validity — deliberately NOT on tick state, because `before-callback` doesn't reliably fire at
+tick time and gating on it left the button locked for the whole verification. A Send click before or
+while the challenge runs instead waits for the token (up to 15s, with a "tick the checkbox" hint in
+the status) and then proceeds with the submission. Explicit rendering does **not**
 auto-add the `cf-turnstile-response` form input (implicit rendering does), so the token is captured via
 the render `callback` and sent from that variable, not from FormData. Rate limiting on the endpoint is a
 **Cloudflare dashboard rule**, not code — see `docs/DEPLOYMENT.md#rate-limiting`.
